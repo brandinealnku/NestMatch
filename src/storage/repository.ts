@@ -1,0 +1,6 @@
+import type {Criteria,Decision,ListingSearchResult} from '../types/models';
+const keys={criteria:'nestmatch:v1:criteria',listings:'nestmatch:v1:listings',decisions:'nestmatch:v1:decisions',settings:'nestmatch:v1:settings'};
+function read<T>(key:string,valid:(x:unknown)=>boolean):T|null{try{const x=JSON.parse(localStorage.getItem(key)??'null');return valid(x)?x:null}catch{return null}}
+function write(key:string,x:unknown){try{localStorage.setItem(key,JSON.stringify(x))}catch{/* storage may be unavailable */}}
+export const storage={getCriteria:()=>read<Criteria>(keys.criteria,x=>!!x&&typeof x==='object'&&typeof (x as Criteria).maxPrice==='number'),saveCriteria:(x:Criteria)=>write(keys.criteria,x),getListings:()=>read<ListingSearchResult>(keys.listings,x=>!!x&&typeof x==='object'&&Array.isArray((x as ListingSearchResult).listings)),saveListings:(x:ListingSearchResult)=>write(keys.listings,x),getDecisions:()=>read<Decision[]>(keys.decisions,Array.isArray)??[],saveDecisions:(x:Decision[])=>write(keys.decisions,x),getSettings:()=>read<{mode:'demo'|'live'}>(keys.settings,x=>!!x&&typeof x==='object')??{mode:'demo'},saveSettings:(x:{mode:'demo'|'live'})=>write(keys.settings,x),reset:()=>Object.values(keys).forEach(k=>{try{localStorage.removeItem(k)}catch{/* no-op */}})};
+export function undoDecision(items:Decision[]){return items.slice(0,-1)}

@@ -1,0 +1,1 @@
+import {Link} from 'react-router-dom';export function Logo(){return <Link to="/" className="logo" aria-label="NestMatch home"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M9 31 32 12l23 19v21H19V36"/><path d="m26 36 6 6 10-12"/></svg><span>NestMatch</span></Link>}

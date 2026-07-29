@@ -1,0 +1,1 @@
+export function HouseArt({variant=0,label='Illustration of a fictional demonstration home'}:{variant?:number;label?:string}){return <div className={'house-art art-'+variant%4} role="img" aria-label={label}><div className="sun"/><div className="house"><div className="roof"/><div className="door"/><i/><i/></div><span>Fictional demo home</span></div>}

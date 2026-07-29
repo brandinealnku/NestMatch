@@ -1,0 +1,1 @@
+import {Link} from 'react-router-dom';export function NotFoundPage(){return <section className="page empty"><span>404</span><h1>This page took a wrong turn.</h1><p>Let’s get you back to homes that fit.</p><Link className="button primary" to="/">Go home</Link></section>}
