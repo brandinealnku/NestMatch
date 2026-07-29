@@ -53,7 +53,7 @@ describe("filtering", () => {
   it("filters property types that are not allowed", () => {
     expect(
       evaluateListing(
-        { ...eligibleListing, propertyType: "Condo" },
+        { ...eligibleListing, propertyType: "Multi-family" },
         defaultCriteria,
       ).eligible,
     ).toBe(false);
