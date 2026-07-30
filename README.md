@@ -2,7 +2,7 @@
 
 **Swipe less. Find the home that fits.**
 
-NestMatch is a responsive, accessible home-discovery app. A buyer records practical criteria, reviews one transparently scored home at a time, and compares Loved homes. Version 1 is single-user and stores data only in the current browser.
+NestMatch is a responsive, accessible home-discovery app. A buyer records practical criteria, reviews one transparently scored home at a time, and compares Loved homes. Phase 1 of Version 2 adds a local Couple Match Demo while preserving the complete solo experience.
 
 ## Screenshots
 
@@ -17,6 +17,7 @@ Run the app and open the landing, Discover, and Shortlist views; the repository 
 - Detail views, missing-data states, persistent decisions, shortlist sorting, and a responsive top-three comparison
 - Safe recovery from corrupted/unavailable local storage; no account, cookies, analytics, or geolocation
 - Hash routing and relative production assets for GitHub Pages
+- A collaborative local demo with simulated partner Alex, private seeded decisions, Love + Love House Matches, an accessible celebration, a Matches dashboard, notifications, undo protection, versioned persistence, and Reset Demo
 
 ## Stack and structure
 
@@ -29,7 +30,7 @@ npm install
 npm run dev
 ```
 
-Leave `VITE_LISTINGS_API_BASE_URL` empty to use Demo Mode. Demo listings are **fictional** and are not active offers for sale. No credential is needed.
+Leave `VITE_LISTINGS_API_BASE_URL` empty to use Demo Mode. Demo listings are **fictional** and are not active offers for sale. No credential is needed. Choose **Try Couple Match Demo** to review the shared deck with simulated partner Alex; no real account, invitation, network collaboration, or Supabase connection is used in Phase 1.
 
 ## Live-data architecture and RentCast setup
 
@@ -81,6 +82,6 @@ Live listing availability depends on provider coverage and configuration. Listin
 
 Semantic controls, visible focus, skip navigation, live announcements, touch-sized buttons, non-gesture alternatives, reduced-motion support, a captioned comparison table, and honest missing states are built in. Match inputs are explicit property/financial facts only. NestMatch never collects or scores protected-class information or neighborhood-demographic proxies.
 
-## Version 1 limitations
+## Current limitations
 
-No accounts, synchronization, shared/couple workflows, notes, full interactive maps, commute estimates, tours, alerts, financing, transactions, or market analytics. Live lookup returns the configured provider page only and does not scrape listing sites. See [ROADMAP.md](ROADMAP.md).
+Collaborative Demo data is local to one browser and Alex is simulated. Phase 1 has no accounts, real invitations, synchronization, Supabase, or realtime collaboration. It also has no notes, full interactive maps, commute estimates, tours, financing, transactions, or market analytics. Live lookup returns the configured provider page only and does not scrape listing sites. See [ROADMAP.md](ROADMAP.md).
