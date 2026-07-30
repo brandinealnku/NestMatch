@@ -1,2 +1,11 @@
-import { useState, type FormEvent } from "react"; import { Link } from "react-router-dom"; import { useAuth } from "../auth/AuthProvider";
-export function SignInPage() { const auth = useAuth(), [email,setEmail]=useState(""), [sent,setSent]=useState(false), [busy,setBusy]=useState(false), [error,setError]=useState(""); const submit=async(e:FormEvent)=>{e.preventDefault();setBusy(true);setError("");try{await auth.signInWithMagicLink(email);setSent(true);}catch(err){setError(err instanceof Error?err.message:"Unable to send a link.");}finally{setBusy(false);}}; return <section className="panel narrow"><h1>Sign in to NestMatch</h1>{!auth.isConfigured?<p>Accounts are not configured for this deployment. The Collaborative Demo remains available.</p>:sent?<><p role="status">Check your inbox for your private sign-in link.</p><p>If it does not arrive, wait a moment, check spam, then resend.</p><button onClick={()=>setSent(false)}>Use another email</button></>:<form onSubmit={submit}><label htmlFor="email">Email address</label><input id="email" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)}/><p>No password is needed. We will email a one-time sign-in link.</p>{error&&<p role="alert">{error}</p>}<button disabled={busy}>{busy?"Sending…":"Email me a sign-in link"}</button></form>}<p><Link to="/group/demo">Try the Collaborative Demo</Link></p></section>; }
+import { Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
+import { AuthChoices } from "../components/auth/AuthChoices";
+
+export function SignInPage() {
+  const auth = useAuth();
+  return <section className="panel narrow auth-panel"><p className="eyebrow">Private home search</p><h1>Sign in to NestMatch</h1>
+    {!auth.isConfigured ? <div className="notice"><div><strong>Collaborative Demo Mode</strong><p>Accounts are not configured for this deployment, but the complete couple demo still works.</p></div></div> : <><p className="lede small">No password needed. Choose a secure sign-in method.</p><AuthChoices /></>}
+    <p className="demo-link"><Link to="/group/demo">Try the Collaborative Demo</Link></p>
+  </section>;
+}
