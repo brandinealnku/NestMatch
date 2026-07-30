@@ -1,4 +1,5 @@
 import type { Criteria, DecisionKind, Listing } from "../types/models";
+import type { CachedListingInventory, ListingSearchRequest, ListingSearchResponse } from "../listings/listingTypes";
 
 export interface SearchGroup { id: string; name: string; partnerName: string }
 export interface SearchGroupDetail extends SearchGroup { criteria: Criteria }
@@ -14,6 +15,8 @@ export interface CollaborationRepository {
   getGroup(groupId: string): Promise<SearchGroupDetail>;
   updateCriteria(groupId: string, criteria: Criteria): Promise<void>;
   getGroupListings(groupId: string): Promise<Listing[]>;
+  getCachedInventory?(groupId: string): Promise<CachedListingInventory>;
+  searchListings?(input: ListingSearchRequest): Promise<ListingSearchResponse>;
   saveSwipe(groupId: string, listingId: string, decision: DecisionKind): Promise<SwipeResult>;
   removeSwipe(groupId: string, listingId: string): Promise<boolean>;
   getMySwipes(groupId: string): Promise<UserSwipe[]>;

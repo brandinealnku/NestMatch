@@ -32,19 +32,30 @@ npm run dev
 
 Leave `VITE_LISTINGS_API_BASE_URL` empty to use Demo Mode. Demo listings are **fictional** and are not active offers for sale. No credential is needed. Choose **Try Couple Match Demo** to review the shared deck with simulated partner Alex; no real account, invitation, network collaboration, or Supabase connection is used in Phase 1.
 
-## Live-data architecture and RentCast setup
+## Phase 3A live shared listings and RentCast setup
 
-The browser calls only the deployed Supabase Edge Function URL in `VITE_LISTINGS_API_BASE_URL`. The function validates city/state or ZIP, radius (1–50), limit (1–100), and offset, then calls RentCast's sale-listings endpoint with `X-Api-Key`. It normalizes responses and sanitizes errors. Live availability depends on provider coverage and configuration.
+Signed-in owners call the deployed `search-listings` Supabase Edge Function through the existing public Supabase client. The function authenticates the caller, verifies active group ownership, validates city/state or ZIP and criteria, and calls RentCast's active sale-listings endpoint once. Normalized snapshots are cached in `group_listings`, so both members load the same stable inventory without another provider request. Page loads, logins, callbacks, and route changes never trigger RentCast.
 
 ```bash
 supabase login
 supabase link --project-ref YOUR_PROJECT_REF
-supabase secrets set RENTCAST_API_KEY=your_server_side_key
-supabase secrets set ALLOWED_ORIGIN=https://your-github-pages-url
-supabase functions deploy search-listings --no-verify-jwt
+npx supabase secrets set RENTCAST_API_KEY=YOUR_KEY
+npx supabase secrets set ALLOWED_ORIGIN=https://brandinealnku.github.io
+npx supabase functions deploy search-listings
 ```
 
-For local function work, use a gitignored Supabase environment file and `supabase functions serve search-listings --env-file supabase/.env.local --no-verify-jwt`. `RENTCAST_API_KEY` and `ALLOWED_ORIGIN` are server-side secrets; provider credentials must never be exposed in browser code, logs, a `VITE_` variable, or source control. Copy `.env.example` to `.env.local` and put only the public function URL there.
+For local function work, set `ALLOWED_ORIGIN=http://localhost:5173` and `RENTCAST_API_KEY=server-side-only` in a gitignored Supabase function environment. Both values are **Supabase Edge Function secrets**, never `VITE_` variables. The browser needs only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; `VITE_LISTINGS_API_BASE_URL` is retained only for the earlier solo provider adapter and is not used by connected searches.
+
+RentCast's sale-listings response currently does not document a listing-photo collection. Phase 3A therefore does not scrape or invent photos: connected cards use the branded NestMatch placeholder unless a future explicitly permitted normalized image URL is supplied. Coverage and fields vary by market and provider plan.
+
+### Brandi and Joe two-browser test
+
+1. Brandi signs in and creates or opens a shared group.
+2. She opens **Find homes**, enters a Cincinnati/Northern Kentucky city and state or local ZIP, chooses criteria, and taps **Find homes**.
+3. Brandi shares the existing invitation; Joe signs in in a separate browser/incognito session and joins.
+4. Confirm both see the same listing inventory. Brandi Loves a home; Joe must not see her decision.
+5. Joe Loves that home. Confirm exactly one mutual match and the existing notification for each member.
+6. Reload both browsers. Listings, private swipes, and matches persist, and reloading makes no RentCast request. Only an explicit owner **Refresh listings** action consumes another call.
 
 ## Security
 

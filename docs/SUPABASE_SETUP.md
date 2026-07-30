@@ -105,3 +105,14 @@ Add the public Supabase values and the two independent provider flags as GitHub 
 - **Invitation unavailable:** it may be malformed, expired after seven days, revoked, used, self-accepted, or point to a full group. Errors are deliberately non-enumerating.
 - **CORS failure:** set `ALLOWED_ORIGIN` to the request origin (`https://brandinealnku.github.io`, without a path).
 - **SQL tests cannot connect:** run `supabase start`; Docker must be available. Do not treat a skipped suite as passing.
+# Phase 3A: RentCast listing function
+
+Connected searches use an authenticated Supabase Edge Function; never place the RentCast key in browser environment variables.
+
+```bash
+npx supabase secrets set RENTCAST_API_KEY=YOUR_KEY
+npx supabase secrets set ALLOWED_ORIGIN=https://brandinealnku.github.io
+npx supabase functions deploy search-listings
+```
+
+For local testing, configure the server-only function secrets `ALLOWED_ORIGIN=http://localhost:5173` and `RENTCAST_API_KEY=server-side-only`. Apply the existing schema with `npx supabase db push`; Phase 3A requires no new migration because `group_listings` already has the composite identity, normalized JSON snapshot, source, timestamps, and member-read/owner-write RLS required by the feature.
