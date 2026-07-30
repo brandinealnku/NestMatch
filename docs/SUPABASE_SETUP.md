@@ -116,3 +116,17 @@ npx supabase functions deploy search-listings
 ```
 
 For local testing, configure the server-only function secrets `ALLOWED_ORIGIN=http://localhost:5173` and `RENTCAST_API_KEY=server-side-only`. Apply the existing schema with `npx supabase db push`; Phase 3A requires no new migration because `group_listings` already has the composite identity, normalized JSON snapshot, source, timestamps, and member-read/owner-write RLS required by the feature.
+
+## v0.4 notes and Realtime setup
+
+Apply the additive migration without modifying the applied Phase 2 migration:
+
+```bash
+npx supabase db push
+```
+
+`20260730190000_live_couple_match_beta.sql` creates `match_notes`, validates its composite match/group relationship, limits trimmed bodies to 1,000 characters, indexes match/group loading, enables RLS, and permits active members to read/create while restricting update/delete to the author. Creation additionally requires an active match. The migration adds `matches`, `notifications`, and `match_notes` to `supabase_realtime`; confirm these tables are enabled under **Database → Replication**. Realtime events remain subject to the subscriber JWT and RLS. Clients never subscribe to `swipes`, never insert matches, and never insert another user’s notifications.
+
+For security verification, use Brandi, Joe, and a third authenticated SQL test identity: each partner can select only their own `swipes`; the third user receives no group, listing, match, or note rows; direct browser inserts into membership, matches, notifications, and invitations fail; cross-group note inserts fail through the composite foreign key/RLS; and route IDs plus Realtime filters cannot bypass RLS. Keep provider and service-role credentials only in Supabase secrets.
+
+The full phone installation, 24-step Brandi/Joe test, and feedback checklist are in the README. Google/Apple provider configuration and agent/tour workflows remain deferred. The PWA never caches Supabase responses, callback/invite URLs, invitation tokens, or private collaboration records.

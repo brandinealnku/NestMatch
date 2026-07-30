@@ -67,6 +67,15 @@ export type Database = {
           { foreignKeyName: "notifications_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] },
         ];
       };
+      match_notes: {
+        Row: { id: string; match_id: string; group_id: string; author_id: string; body: string; created_at: string; updated_at: string };
+        Insert: { id?: string; match_id: string; group_id: string; author_id: string; body: string; created_at?: string; updated_at?: string };
+        Update: { id?: string; match_id?: string; group_id?: string; author_id?: string; body?: string; created_at?: string; updated_at?: string };
+        Relationships: [
+          { foreignKeyName: "match_notes_match_group_fkey"; columns: ["match_id", "group_id"]; isOneToOne: false; referencedRelation: "matches"; referencedColumns: ["id", "group_id"] },
+          { foreignKeyName: "match_notes_author_id_fkey"; columns: ["author_id"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] },
+        ];
+      };
       invitations: {
         Row: { id: string; group_id: string; created_by: string; token_hash: string; expires_at: string; accepted_by: string | null; accepted_at: string | null; revoked_at: string | null; created_at: string };
         Insert: { id?: string; group_id: string; created_by: string; token_hash: string; expires_at?: string; accepted_by?: string | null; accepted_at?: string | null; revoked_at?: string | null; created_at?: string };
