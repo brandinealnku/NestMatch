@@ -8,7 +8,6 @@ import { safeProviderName, startOAuth, type SocialProvider } from "./socialAuth"
 export type AuthAction = SocialProvider | "magic-link" | "password-sign-in" | "password-sign-up" | "password-update";
 export interface AuthContextValue { isConfigured: boolean; enabledProviders: typeof authProviderConfiguration; isLoading: boolean; activeAction: AuthAction | null; authError: string; user: AuthUser | null; profile: Profile | null; signInWithGoogle(): Promise<void>; signInWithApple(): Promise<void>; signInWithMagicLink(email: string): Promise<void>; signInWithPassword(email: string, password: string): Promise<void>; signUpWithPassword(email: string, password: string): Promise<{ requiresEmailConfirmation: boolean }>; updatePassword(password: string): Promise<void>; clearAuthError(): void; signOut(): Promise<void>; refreshProfile(): Promise<void>; saveProfile(input: ProfileInput): Promise<void> }
 const AuthContext = createContext<AuthContextValue | null>(null);
-type AuthOperationResult<TData> = { data: TData; error: unknown };
 const toProfile = (row: Tables<"profiles">): Profile => ({ id: row.id, displayName: row.display_name, avatarColor: row.avatar_color ?? undefined, browserNotificationsEnabled: row.browser_notifications_enabled, createdAt: row.created_at, updatedAt: row.updated_at });
 const mapUser = (source: { id: string; email?: string; user_metadata?: Record<string, unknown> }): AuthUser => { const candidate = source.user_metadata?.full_name ?? source.user_metadata?.name; const suggestedDisplayName = typeof candidate === "string" && candidate.trim() && !candidate.includes("@") ? candidate.trim() : undefined; return { id: source.id, email: source.email, suggestedDisplayName }; };
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -18,22 +17,113 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (!supabase) { setLoading(false); return; } let alive = true; void supabase.auth.getSession().then(({ data }) => { if (!alive) return; setUser(data.session?.user ? mapUser(data.session.user) : null); setLoading(false); }); const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { if (!alive) return; setUser(session?.user ? mapUser(session.user) : null); setActiveAction(null); if (!session) setProfile(null); }); return () => { alive = false; listener.subscription.unsubscribe(); }; }, []);
   useEffect(() => { void refreshProfile(); }, [refreshProfile]);
   const socialSignIn = useCallback(async (provider: SocialProvider) => { if (!supabase) throw new Error("Account sign-in is not configured."); if (!authProviderConfiguration[provider] || redirectLocks.current.has(provider)) return; redirectLocks.current.add(provider); setActiveAction(provider); setAuthError(""); try { await startOAuth(supabase.auth, provider, appBaseUrl()); } catch { redirectLocks.current.delete(provider); const message = `We could not start ${safeProviderName(provider)} sign-in. Please try another method.`; setAuthError(message); setActiveAction(null); throw new Error(message); } }, []);
-  const runPasswordAction = useCallback(async <TData,>(action: AuthAction, request: () => Promise<AuthOperationResult<TData>>, fallback: string): Promise<TData> => {
-    if (!supabase) throw new Error("Account sign-in is not configured.");
-    setActiveAction(action); setAuthError("");
-    try { const { data, error } = await request(); if (error) throw error; return data; }
-    catch { setAuthError(fallback); throw new Error(fallback); }
-    finally { setActiveAction(null); }
-  }, []);
   const value = useMemo<AuthContextValue>(() => ({ isConfigured: supabaseConfiguration.isConfigured, enabledProviders: authProviderConfiguration, isLoading, activeAction, authError, user, profile, refreshProfile,
     signInWithGoogle: () => socialSignIn("google"), signInWithApple: () => socialSignIn("apple"), clearAuthError: () => setAuthError(""),
-    signInWithPassword: async (email, password) => { await runPasswordAction("password-sign-in", () => requestPasswordSignIn(supabase!.auth, email, password), "We could not sign you in. Check your email and password. This account may require email confirmation before signing in."); },
-    signUpWithPassword: async (email, password) => { const data = await runPasswordAction("password-sign-up", () => requestPasswordSignUp(supabase!.auth, email, password), "We could not create your account. Please check your details and try again."); return { requiresEmailConfirmation: !data.session }; },
-    updatePassword: async password => { if (!user) throw new Error("Sign in to add or change a password."); await runPasswordAction("password-update", () => supabase!.auth.updateUser({ password }), "We could not update your password. Please try again."); },
+    signInWithPassword: async (email, password) => {
+      if (!supabase) {
+        throw new Error("Account sign-in is not configured.");
+      }
+
+      const message =
+        "We could not sign you in. Check your email and password. This account may require email confirmation before signing in.";
+
+      setActiveAction("password-sign-in");
+      setAuthError("");
+
+      try {
+        const { error } = await requestPasswordSignIn(
+          supabase.auth,
+          email,
+          password,
+        );
+
+        if (error) {
+          setAuthError(message);
+          throw new Error(message);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message === message) {
+          throw error;
+        }
+
+        setAuthError(message);
+        throw new Error(message);
+      } finally {
+        setActiveAction(null);
+      }
+    },
+    signUpWithPassword: async (email, password) => {
+      if (!supabase) {
+        throw new Error("Account sign-in is not configured.");
+      }
+
+      const message =
+        "We could not create your account. Please check your details and try again.";
+
+      setActiveAction("password-sign-up");
+      setAuthError("");
+
+      try {
+        const { data, error } = await requestPasswordSignUp(
+          supabase.auth,
+          email,
+          password,
+        );
+
+        if (error) {
+          setAuthError(message);
+          throw new Error(message);
+        }
+
+        return {
+          requiresEmailConfirmation: !data.session,
+        };
+      } catch (error) {
+        if (error instanceof Error && error.message === message) {
+          throw error;
+        }
+
+        setAuthError(message);
+        throw new Error(message);
+      } finally {
+        setActiveAction(null);
+      }
+    },
+    updatePassword: async password => {
+      if (!supabase || !user) {
+        throw new Error("Sign in to add or change a password.");
+      }
+
+      const message =
+        "We could not update your password. Please try again.";
+
+      setActiveAction("password-update");
+      setAuthError("");
+
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password,
+        });
+
+        if (error) {
+          setAuthError(message);
+          throw new Error(message);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message === message) {
+          throw error;
+        }
+
+        setAuthError(message);
+        throw new Error(message);
+      } finally {
+        setActiveAction(null);
+      }
+    },
     signInWithMagicLink: async email => { if (!supabase) throw new Error("Account sign-in is not configured."); if (activeAction === "magic-link") return; setActiveAction("magic-link"); setAuthError(""); const { error } = await requestMagicLink(supabase.auth, email.trim().toLowerCase()); setActiveAction(null); if (error) { const message="Email delivery is temporarily limited. You can still sign in with your password."; setAuthError(message); throw new Error(message); } },
     signOut: async () => { setUser(null); setProfile(null); if (supabase) await supabase.auth.signOut(); window.dispatchEvent(new Event("nestmatch:auth-cleared")); },
     saveProfile: async input => { if (!supabase || !user) throw new Error("Sign in to save a profile."); const displayName = input.displayName.trim(); if (!displayName) throw new Error("Display name is required."); const { error } = await supabase.from("profiles").upsert({ id: user.id, display_name: displayName, avatar_color: input.avatarColor || null, browser_notifications_enabled: input.browserNotificationsEnabled }); if (error) throw new Error("We could not save your profile."); await refreshProfile(); },
-  }), [isLoading, activeAction, authError, user, profile, refreshProfile, socialSignIn, runPasswordAction]);
+  }), [isLoading, activeAction, authError, user, profile, refreshProfile, socialSignIn]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 export const useAuth = () => { const value = useContext(AuthContext); if (!value) throw new Error("Auth provider missing"); return value; };
