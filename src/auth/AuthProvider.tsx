@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { appBaseUrl, requestMagicLink, supabase, supabaseConfiguration } from "../lib/supabase";
+import { appBaseUrl, requestMagicLink, requestPasswordSignIn, requestPasswordSignUp, supabase, supabaseConfiguration } from "../lib/supabase";
 import type { AuthUser, Profile, ProfileInput } from "./authTypes";
 import type { Tables } from "../types/supabase-database.types";
 import { authProviderConfiguration } from "../lib/supabase";
@@ -26,8 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
   const value = useMemo<AuthContextValue>(() => ({ isConfigured: supabaseConfiguration.isConfigured, enabledProviders: authProviderConfiguration, isLoading, activeAction, authError, user, profile, refreshProfile,
     signInWithGoogle: () => socialSignIn("google"), signInWithApple: () => socialSignIn("apple"), clearAuthError: () => setAuthError(""),
-    signInWithPassword: async (email, password) => { await runPasswordAction("password-sign-in", () => supabase!.auth.signInWithPassword({ email: email.trim().toLowerCase(), password }), "We could not sign you in. Check your email and password. This account may require email confirmation before signing in."); },
-    signUpWithPassword: async (email, password) => { const data = await runPasswordAction("password-sign-up", () => supabase!.auth.signUp({ email: email.trim().toLowerCase(), password, options: { emailRedirectTo: appBaseUrl() } }), "We could not create your account. Please check your details and try again."); return { requiresEmailConfirmation: !data.session }; },
+    signInWithPassword: async (email, password) => { await runPasswordAction("password-sign-in", () => requestPasswordSignIn(supabase!.auth, email, password), "We could not sign you in. Check your email and password. This account may require email confirmation before signing in."); },
+    signUpWithPassword: async (email, password) => { const data = await runPasswordAction("password-sign-up", () => requestPasswordSignUp(supabase!.auth, email, password), "We could not create your account. Please check your details and try again."); return { requiresEmailConfirmation: !data.session }; },
     updatePassword: async password => { if (!user) throw new Error("Sign in to add or change a password."); await runPasswordAction("password-update", () => supabase!.auth.updateUser({ password }), "We could not update your password. Please try again."); },
     signInWithMagicLink: async email => { if (!supabase) throw new Error("Account sign-in is not configured."); if (activeAction === "magic-link") return; setActiveAction("magic-link"); setAuthError(""); const { error } = await requestMagicLink(supabase.auth, email.trim().toLowerCase()); setActiveAction(null); if (error) { const message="Email delivery is temporarily limited. You can still sign in with your password."; setAuthError(message); throw new Error(message); } },
     signOut: async () => { setUser(null); setProfile(null); if (supabase) await supabase.auth.signOut(); window.dispatchEvent(new Event("nestmatch:auth-cleared")); },
