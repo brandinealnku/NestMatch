@@ -20,4 +20,14 @@ export const authProviderConfiguration = getAuthProviderConfiguration();
 export const supabase: NestMatchSupabaseClient | null = supabaseConfiguration.isConfigured
   ? createClient<Database, "public">(supabaseConfiguration.url!, supabaseConfiguration.publishableKey!, { auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } })
   : null;
-export const appBaseUrl = () => new URL(import.meta.env.BASE_URL, `${window.location.origin}/`).toString();
+
+export function appBaseUrl(base = import.meta.env.BASE_URL, documentUrl = document.baseURI): string {
+  const url = new URL(base, documentUrl);
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+export function requestMagicLink(auth: Pick<NestMatchSupabaseClient["auth"], "signInWithOtp">, email: string) {
+  return auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: appBaseUrl() } });
+}
