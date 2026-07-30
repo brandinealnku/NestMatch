@@ -16,7 +16,7 @@ Run the app and open the landing, Discover, and Shortlist views; the repository 
 - Button, touch-swipe, and keyboard decisions (left Pass, down Maybe, right Love, Backspace Undo)
 - Detail views, missing-data states, persistent decisions, shortlist sorting, and a responsive top-three comparison
 - Safe recovery from corrupted/unavailable local storage; no account, cookies, analytics, or geolocation
-- Hash routing and relative production assets for GitHub Pages
+- Hash routing and repository-rooted production assets for GitHub Pages
 - A collaborative local demo with simulated partner Alex, private seeded decisions, Love + Love House Matches, an accessible celebration, a Matches dashboard, notifications, undo protection, versioned persistence, and Reset Demo
 
 ## Stack and structure
@@ -76,7 +76,7 @@ npm run build
 3. The workflow installs dependencies, lints, tests, builds, uploads, and deploys `dist`.
 4. To enable live search, also deploy the Edge Function and set `VITE_LISTINGS_API_BASE_URL` in the build environment; a static Pages deployment remains fully usable in Demo Mode.
 
-Hash routing permits refreshes beneath a repository subpath. Vite emits relative asset paths without hardcoding an owner or repository.
+Hash routing permits refreshes beneath the repository subpath. Production builds use the explicit `/NestMatch/` base so authentication callbacks, assets, and the service worker consistently resolve to the deployed application root without hardcoding the GitHub account owner.
 
 ## Troubleshooting and data limitations
 
