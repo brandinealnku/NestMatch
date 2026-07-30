@@ -1,4 +1,4 @@
-# Supabase setup — Phase 2
+# Supabase setup — Phase 2 and Phase 2.5 social authentication
 
 Phase 2 supplies authentication, profiles, two-person groups, private swipe storage, database-created Love + Love matches, and secure invitations. Connected listing refresh/swiping, Realtime, and the connected Matches dashboard intentionally wait for Phase 3.
 
@@ -36,6 +36,22 @@ http://localhost:5173/
 
 Magic Links use PKCE. The redirect excludes the hash route. NestMatch exchanges the non-hash `?code=` once, removes it with `history.replaceState`, keeps the `/NestMatch/` path, and restores pending invitations from session storage.
 
+### Google OAuth
+
+1. In Google Cloud, create an OAuth web client. Add `https://brandinealnku.github.io` and `http://localhost:5173` as authorized JavaScript origins.
+2. Add `https://nasbzmojopixtyofebvv.supabase.co/auth/v1/callback` as the authorized redirect URI. Google returns to Supabase first; Supabase then returns to the allow-listed NestMatch URL.
+3. In **Supabase Dashboard → Authentication → Sign In / Providers → Google**, enable Google and enter the Google client ID and client secret.
+4. Keep the Google client secret in Supabase/Google only. It is never a GitHub variable or `VITE_` value.
+5. Retain `https://brandinealnku.github.io/NestMatch/` in Supabase's redirect allow list for GitHub Pages and `http://localhost:5173/` for local use.
+
+### Apple OAuth
+
+Apple sign-in requires a paid Apple Developer account. Create an App ID with Sign in with Apple and a Services ID for the website. Associate the Services ID with the primary App ID, configure `brandinealnku.github.io` as the web domain, and configure `https://nasbzmojopixtyofebvv.supabase.co/auth/v1/callback` as the return URL. Complete Apple's website-domain association requirements before enabling production sign-in.
+
+In **Supabase Dashboard → Authentication → Sign In / Providers → Apple**, enter the Apple Services ID, Team ID, Key ID, and the generated signing-key/client-secret material. The `.p8` signing key and generated Apple client secret belong in Apple/Supabase—not GitHub, Vite, or this repository. Apple's generated client secret expires and must be rotated before its configured expiration.
+
+Apple may provide a name only on the first authorization and may supply a private relay address when Hide My Email is selected. NestMatch therefore always treats the Supabase user ID as the canonical identity, asks for an editable display name, never displays an email as the default name, and does not silently merge accounts. A relay identity may be distinct from an existing Google/email identity; account linking remains a user/Supabase administration concern.
+
 ## Edge Functions and secrets
 
 Configure server-side secrets (never `VITE_` values):
@@ -56,11 +72,21 @@ Copy `.env.example` to gitignored `.env.local` and set only public values:
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+VITE_ENABLE_GOOGLE_AUTH=true
+VITE_ENABLE_APPLE_AUTH=true
 VITE_LISTINGS_API_BASE_URL=
 VITE_APP_ENV=development
 ```
 
-Add the same three `VITE_` values (except `VITE_APP_ENV`, which is optional) as GitHub **repository variables**, not secrets copied into source. Never put a service-role or provider credential in a browser variable.
+Add the public Supabase values and the two independent provider flags as GitHub **repository variables**, not secrets copied into source. Set a flag to `true` only after that provider is enabled in Supabase; disabled buttons are not rendered. Never put a service-role, Google secret, Apple signing key, or provider client secret in a browser variable. Magic Link remains available whenever Supabase public configuration exists.
+
+## Phase 2.5 mobile manual verification
+
+**Google:** On a phone, open NestMatch, tap Continue with Google, authenticate, verify return to `/NestMatch/`, verify the `?code=` query disappears, complete the profile if prompted, then sign out and repeat.
+
+**Apple:** In mobile Safari, tap Continue with Apple, test both shared email and Hide My Email when possible, verify the Pages return and callback cleanup, and complete the editable profile prompt. Repeat sign-in to confirm the chosen profile name is not overwritten.
+
+**Invitation:** User A creates an invitation, taps Invite your person, and sends it from the native share sheet. User B opens it in another mobile browser, signs in with Apple, Google, or Magic Link, returns automatically, completes profile setup if needed, and accepts without copying a token. Confirm both users can access the group and a third user cannot. Also test share cancellation, clipboard denial, refresh before sign-in/during profile setup, expired/reused links, and widths 320, 375, 390, and 430px.
 
 ## Verification
 

@@ -1,0 +1,10 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { InvitePartnerCard, INVITE_SHARE_MESSAGE, INVITE_SHARE_TITLE } from "../components/collaboration/InvitePartnerCard";
+
+const props = { token: "safe_token_123", onRevoke: vi.fn(async()=>undefined), onReplace: vi.fn(async()=>undefined) };
+describe("mobile invitation sharing",()=>{
+  it("uses native sharing with server-returned token URL",async()=>{const share=vi.fn().mockResolvedValue(undefined);Object.defineProperty(navigator,"share",{configurable:true,value:share});render(<InvitePartnerCard {...props}/>);fireEvent.click(screen.getByRole("button",{name:"Invite your person"}));await waitFor(()=>expect(share).toHaveBeenCalledWith({title:INVITE_SHARE_TITLE,text:INVITE_SHARE_MESSAGE,url:expect.stringContaining("#/invite/safe_token_123")}));});
+  it("does not report a canceled share as an error",async()=>{Object.defineProperty(navigator,"share",{configurable:true,value:vi.fn().mockRejectedValue(new DOMException("cancel","AbortError"))});render(<InvitePartnerCard {...props}/>);fireEvent.click(screen.getByRole("button",{name:"Invite your person"}));await waitFor(()=>expect(screen.queryByRole("alert")).not.toBeInTheDocument());});
+  it("copies the message and handles clipboard denial safely",async()=>{Object.defineProperty(navigator,"share",{configurable:true,value:undefined});const writeText=vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("denied"));Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText}});render(<InvitePartnerCard {...props}/>);fireEvent.click(screen.getByRole("button",{name:"Copy message and link"}));expect(await screen.findByText("Share message and link copied.")).toBeInTheDocument();expect(writeText).toHaveBeenCalledWith(expect.stringContaining(INVITE_SHARE_MESSAGE));fireEvent.click(screen.getByRole("button",{name:"Copy invitation link"}));expect(await screen.findByRole("alert")).toHaveTextContent("Copying is unavailable");});
+});

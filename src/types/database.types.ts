@@ -12,7 +12,7 @@ export type NotificationRow = Tables<"notifications">;
 export type InvitationRow = Tables<"invitations">;
 
 // Application-facing contracts returned by authenticated operations.
-export interface AuthUser { id: string; email?: string }
+export interface AuthUser { id: string; email?: string; suggestedDisplayName?: string }
 export interface Profile { id: string; displayName: string; avatarColor?: string; browserNotificationsEnabled: boolean; createdAt: string; updatedAt: string }
 export interface ProfileInput { displayName: string; avatarColor?: string; browserNotificationsEnabled: boolean }
 export interface DatabaseSearchGroup { id: string; ownerId: string; name: string; criteria: Criteria; status: "active" | "archived"; maxMembers: 2; createdAt: string; updatedAt: string }
