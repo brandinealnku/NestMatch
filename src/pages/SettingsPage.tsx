@@ -1,0 +1,1 @@
+import { useAuth } from "../auth/AuthProvider"; export function SettingsPage(){const auth=useAuth();return <section className="panel"><h1>Settings</h1><button onClick={()=>void auth.signOut()}>Sign out</button></section>}

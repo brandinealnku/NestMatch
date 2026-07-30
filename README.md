@@ -85,3 +85,11 @@ Semantic controls, visible focus, skip navigation, live announcements, touch-siz
 ## Current limitations
 
 Collaborative Demo data is local to one browser and Alex is simulated. Phase 1 has no accounts, real invitations, synchronization, Supabase, or realtime collaboration. It also has no notes, full interactive maps, commute estimates, tours, financing, transactions, or market analytics. Live lookup returns the configured provider page only and does not scrape listing sites. See [ROADMAP.md](ROADMAP.md).
+
+## Version 2 Phase 2: secure collaboration foundation
+
+The Phase 1 Collaborative Demo (including simulated Alex) remains available without an account or Supabase configuration. Phase 2 adds optional Magic Link PKCE authentication, profile setup, secure two-person group storage, private swipe RLS, database-created Love + Love matches, and hashed single-use invitations. Connected shared swiping, live shared deck refresh, Realtime celebrations, and the full connected Matches dashboard are intentionally deferred to Phase 3.
+
+Browser builds accept only `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and optional `VITE_LISTINGS_API_BASE_URL`; empty Supabase values safely retain Demo Mode. Apply migrations with `supabase db push`, deploy `create-invite`, `accept-invite`, and `revoke-invite`, and keep `SUPABASE_SERVICE_ROLE_KEY` plus `ALLOWED_ORIGIN` server-side. Raw invitation tokens are returned once, shared in the hash URL, held temporarily in `sessionStorage`, and stored in PostgreSQL only as SHA-256 hashes. RLS permits a user to select only their own swipes; mutual matches are created atomically by a fixed-search-path database trigger.
+
+See [the complete Supabase setup guide](docs/SUPABASE_SETUP.md) for Auth redirect settings, GitHub variables, migrations, functions, local SQL tests, two-browser verification, and troubleshooting.
