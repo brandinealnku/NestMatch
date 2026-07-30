@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ListingImage } from "../components/ListingImage";
 import { currency, number } from "../lib/format";
