@@ -1,0 +1,12 @@
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useApp } from "../app/AppContext";
+import { useCollaboration } from "../collaboration/CollaborationContext";
+import { filterListings } from "../lib/filter";
+import { calculateMatchScore } from "../scoring/calculateMatchScore";
+import { PropertyCard } from "../components/PropertyCard";
+import type { DecisionKind } from "../types/models";
+export function CollaborativeDiscoverPage() { const app = useApp(), collaboration = useCollaboration(), [message, setMessage] = useState(""); const deck = useMemo(() => { const reviewed = new Set(collaboration.swipes.map(s => s.listingId)); return filterListings(app.result.listings, app.criteria).filter(l => !reviewed.has(l.id)); }, [app.result.listings, app.criteria, collaboration.swipes]); const active = deck[0];
+  const decide = async (kind: DecisionKind) => { if (!active) return; await collaboration.decide(active.id, kind); setMessage(`${kind === "love" ? "Loved" : kind === "maybe" ? "Saved" : "Passed on"} ${active.addressLine1}`); };
+  const last = collaboration.swipes.at(-1);
+  return <section className="page discover"><div className="notice collaboration-notice"><strong>Collaborative Demo</strong><span>Alex is a simulated partner. No real account or invitation is connected.</span></div><p className="privacy-line">🔒 Your choices stay private unless you both Love the same home.</p><div aria-live="polite" className="sr-only">{message}</div><div className="deck-layout"><aside className="side"><p className="eyebrow">Shared demo deck</p><h2>Our Home Search</h2><p>You + Alex</p><Link className="text-link" to="/group/demo">Demo overview</Link></aside><div className="deck">{active ? <PropertyCard listing={active} score={calculateMatchScore(active, app.criteria)} onDecide={kind => void decide(kind)} /> : <div className="empty"><h1>Deck complete</h1><p>Your private decisions are saved. See whether you found a House Match.</p><Link className="button primary" to="/group/demo/matches">View Matches</Link></div>}</div><aside className="side tips"><p className="eyebrow">Private review</p><p>Only Love + Love creates a visible match.</p><button className="text-link undo" disabled={!last} onClick={async () => { if (!last) return; const ok = await collaboration.undo(last.listingId); setMessage(ok ? "Last decision undone" : "Undo unavailable: this home is already a shared match. Archive it from Matches instead."); }}>↶ Undo last decision</button></aside></div></section>; }

@@ -1,0 +1,13 @@
+import { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
+import { useApp } from "../app/AppContext";
+import { useCollaboration } from "../collaboration/CollaborationContext";
+import { currency } from "../lib/format";
+import { calculateMatchScore } from "../scoring/calculateMatchScore";
+import { HouseArt } from "./HouseArt";
+
+export function MatchCelebration() { const app = useApp(), collaboration = useCollaboration(), close = collaboration.dismissCelebration, dialog = useRef<HTMLDivElement>(null), previous = useRef<HTMLElement | null>(null); const match = collaboration.celebration; const listing = match && app.result.listings.find(l => l.id === match.listingId);
+  useEffect(() => { if (!match) return; previous.current = document.activeElement as HTMLElement; const element = dialog.current; element?.focus(); const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") close(); if (event.key === "Tab" && element) { const controls = [...element.querySelectorAll<HTMLElement>('a,button')]; if (!controls.length) return; const first = controls[0], last = controls[controls.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); } } }; document.addEventListener("keydown", onKey); return () => { document.removeEventListener("keydown", onKey); previous.current?.focus(); }; }, [match, close]);
+  if (!match || !listing) return null; const score = calculateMatchScore(listing, app.criteria);
+  return <div className="modal-backdrop" role="presentation"><div className="match-modal" role="dialog" aria-modal="true" aria-labelledby="match-title" aria-describedby="match-description" ref={dialog} tabIndex={-1}><button className="modal-close" onClick={close} aria-label="Close House Match celebration">×</button><div aria-live="assertive" className="sr-only">House Match created with Alex</div><HouseArt variant={Number(listing.id.replace(/\D/g, ""))}/><p className="eyebrow">You + Alex</p><h1 id="match-title">It’s a House Match!</h1><p id="match-description" className="lede small"><strong>You both loved this home.</strong></p><h2>{listing.addressLine1}</h2><p>{currency(listing.price)} · {score.total}% match</p><p>{score.positiveReasons[0]?.text}. Matched {new Date(match.createdAt).toLocaleDateString()}.</p><div className="button-row"><Link className="button primary" to={`/group/demo/matches`} onClick={close}>View Match</Link><button className="button secondary" onClick={close}>Keep Swiping</button></div></div></div>;
+}
