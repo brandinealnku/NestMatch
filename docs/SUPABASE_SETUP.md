@@ -130,3 +130,22 @@ npx supabase db push
 For security verification, use Brandi, Joe, and a third authenticated SQL test identity: each partner can select only their own `swipes`; the third user receives no group, listing, match, or note rows; direct browser inserts into membership, matches, notifications, and invitations fail; cross-group note inserts fail through the composite foreign key/RLS; and route IDs plus Realtime filters cannot bypass RLS. Keep provider and service-role credentials only in Supabase secrets.
 
 The full phone installation, 24-step Brandi/Joe test, and feedback checklist are in the README. Google/Apple provider configuration and agent/tour workflows remain deferred. The PWA never caches Supabase responses, callback/invite URLs, invitation tokens, or private collaboration records.
+
+## Password authentication fallback
+
+NestMatch supports password sign-in and sign-up alongside the existing Magic Link, Google, and Apple methods. Password sign-in calls Supabase Auth directly and does not send email. Password sign-up uses the application-root redirect URL; when **Confirm email** is enabled, the user must confirm the delivered email before returning to sign in. Do not disable confirmation in application code.
+
+In **Supabase → Authentication → Providers → Email**, verify that the Email provider is enabled and review the project password policy. NestMatch currently enforces a minimum of eight characters in the browser; configure Supabase to at least that strength. Also verify the Site URL and redirect URLs documented below. Google and Apple remain controlled by their existing build-time flags.
+
+For a private Brandi/Joe test when confirmation delivery is limited, an administrator may open **Supabase → Authentication → Users**, create or inspect the test user, and use supported dashboard controls to confirm the user when available. Never edit `auth.users` with ad hoc SQL, expose a service-role key in the browser, or commit an administrative credential. Magic Link and sign-up confirmation email remain subject to Supabase email limits.
+
+An existing Magic Link user can sign in once, open **Settings → Add or change password**, enter and confirm a new password, and then use password sign-in without another email. NestMatch never reads, displays, logs, or stores the password outside Supabase Auth.
+
+Manual password test:
+
+1. Open NestMatch in two browsers and leave Collaborative Demo available as a separate option.
+2. In the first browser, choose **Create account**, enter Brandi's email and an eight-or-more-character password, and confirm it.
+3. If prompted, confirm the account by email, or use the supported dashboard-assisted process above, then return and choose **Sign in**.
+4. Confirm password sign-in reaches profile/groups without sending a Magic Link.
+5. Open an invitation in the second browser, sign in as Joe with a password, and confirm the original invitation continues after profile setup.
+6. Sign out and back in again with each password. Test Magic Link separately and confirm enabled Google/Apple buttons still appear.
