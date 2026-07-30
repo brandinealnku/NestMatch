@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ListingImage } from "../components/ListingImage";
 import { useConnectedRepository } from "../listings/useConnectedRepository";
@@ -10,8 +10,8 @@ import type { HouseMatch, MatchNote } from "../collaboration/types";
 export function ConnectedListingDetailsPage() {
   const { groupId = "", listingId = "" } = useParams(), repository = useConnectedRepository(), { user } = useAuth(), id = decodeURIComponent(listingId);
   const [listing, setListing] = useState<Listing>(), [decision, setDecision] = useState<DecisionKind>(), [match, setMatch] = useState<HouseMatch>(), [notes, setNotes] = useState<MatchNote[]>([]), [body, setBody] = useState(""), [saving, setSaving] = useState(false), [error, setError] = useState("");
-  const load = async () => { if (!repository) return; try { const [inventory, swipes, matches] = await Promise.all([repository.getCachedInventory!(groupId), repository.getMySwipes(groupId), repository.getMatches(groupId, true)]); const found = matches.find(item => item.listingId === id); setListing(inventory.listings.find(item => item.id === id)); setDecision(swipes.find(item => item.listingId === id)?.decision); setMatch(found); if (found && repository.getMatchNotes) setNotes(await repository.getMatchNotes(found.id)); } catch { setError("We could not load this listing. Check your connection and access."); } };
-  useEffect(() => { void load(); }, [groupId, id, repository]);
+  const load = useCallback(async () => { if (!repository) return; try { const [inventory, swipes, matches] = await Promise.all([repository.getCachedInventory!(groupId), repository.getMySwipes(groupId), repository.getMatches(groupId, true)]); const found = matches.find(item => item.listingId === id); setListing(inventory.listings.find(item => item.id === id)); setDecision(swipes.find(item => item.listingId === id)?.decision); setMatch(found); if (found && repository.getMatchNotes) setNotes(await repository.getMatchNotes(found.id)); } catch { setError("We could not load this listing. Check your connection and access."); } }, [repository, groupId, id]);
+  useEffect(() => { void load(); }, [load]);
   const decide = async (choice: DecisionKind) => { if (!repository || !listing || saving) return; setSaving(true); setError(""); try { await repository.saveSwipe(groupId, listing.id, choice); setDecision(choice); await load(); } catch { setError("We could not save that choice. Try again."); } finally { setSaving(false); } };
   const addNote = async () => { if (!repository?.createMatchNote || !match || saving) return; const clean=body.trim(); if(!clean||clean.length>1000){setError("Enter a note of 1,000 characters or fewer.");return} setSaving(true); try { await repository.createMatchNote(match.id,groupId,clean);setBody("");await load(); } catch { setError("We could not save that note. Try again."); } finally { setSaving(false); } };
   const removeNote=async(note:MatchNote)=>{if(!repository?.deleteMatchNote)return;try{await repository.deleteMatchNote(note.id);await load()}catch{setError("We could not delete that note.")}};
