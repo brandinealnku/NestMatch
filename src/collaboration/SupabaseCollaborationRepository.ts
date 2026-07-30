@@ -6,6 +6,7 @@ import type {
 import type { Json, Tables } from "../types/supabase-database.types";
 import type { Criteria, DecisionKind, Listing, PropertyType } from "../types/models";
 import type { CollaborationRepository, CreateGroupInput, HouseMatch, SearchGroup, SearchGroupDetail, SwipeResult, UserNotification, UserSwipe } from "./types";
+import type { CachedListingInventory, ListingSearchRequest, ListingSearchResponse } from "../listings/listingTypes";
 
 type MatchRow = Tables<"matches">;
 type NotificationRow = Tables<"notifications">;
@@ -123,9 +124,22 @@ export class SupabaseCollaborationRepository implements CollaborationRepository 
   }
 
   async getGroupListings(groupId: string): Promise<Listing[]> {
-    const { data, error } = await this.client.from("group_listings").select("listing_snapshot").eq("group_id", groupId);
+    return (await this.getCachedInventory(groupId)).listings;
+  }
+
+  async getCachedInventory(groupId: string): Promise<CachedListingInventory> {
+    const { data, error } = await this.client.from("group_listings").select("listing_snapshot,fetched_at").eq("group_id", groupId).order("listing_id");
     if (error) throw databaseFailure();
-    return (data ?? []).flatMap(({ listing_snapshot }: { listing_snapshot: Json }) => isListing(listing_snapshot) ? [listing_snapshot] : []);
+    const listings = (data ?? []).flatMap(({ listing_snapshot }: { listing_snapshot: Json }) => isListing(listing_snapshot) ? [listing_snapshot] : []);
+    const fetchedAt = (data ?? []).map((row: { fetched_at: string }) => row.fetched_at).sort().at(-1);
+    return { listings, fetchedAt };
+  }
+
+  async searchListings(input: ListingSearchRequest): Promise<ListingSearchResponse> {
+    const { data, error } = await this.client.functions.invoke("search-listings", { body: input });
+    if (error || !safeObject(data) || !Array.isArray(data.listings) || !isString(data.fetchedAt)) throw new Error("The listing search could not be completed.");
+    const listings = data.listings.flatMap((item: Json) => isListing(item) ? [item] : []);
+    return { listings, total: listings.length, fetchedAt: data.fetchedAt, source: "rentcast" };
   }
 
   async saveSwipe(groupId: string, listingId: string, decision: DecisionKind): Promise<SwipeResult> {

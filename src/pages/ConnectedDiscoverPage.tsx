@@ -1,0 +1,19 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { PropertyCard } from "../components/PropertyCard";
+import { useConnectedRepository } from "../listings/useConnectedRepository";
+import { calculateMatchScore } from "../scoring/calculateMatchScore";
+import type { Criteria, DecisionKind, Listing } from "../types/models";
+import type { UserSwipe } from "../collaboration/types";
+
+export function ConnectedDiscoverPage() {
+  const { groupId = "" } = useParams(), repository = useConnectedRepository();
+  const [listings, setListings] = useState<Listing[]>([]), [swipes, setSwipes] = useState<UserSwipe[]>([]), [criteria, setCriteria] = useState<Criteria>(), [loading, setLoading] = useState(true), [error, setError] = useState("");
+  useEffect(() => { if (!repository) return; let active = true; setLoading(true); Promise.all([repository.getCachedInventory(groupId), repository.getMySwipes(groupId), repository.getGroup(groupId)]).then(([inventory, mine, group]) => { if (!active) return; setListings(inventory.listings); setSwipes(mine); setCriteria(group.criteria); }).catch(() => active && setError("We could not load this shared listing set.")).finally(() => active && setLoading(false)); return () => { active = false; }; }, [groupId, repository]);
+  const deck = useMemo(() => { const reviewed = new Set(swipes.map(item => item.listingId)); return listings.filter(item => !reviewed.has(item.id)); }, [listings, swipes]);
+  const decide = async (kind: DecisionKind) => { const active = deck[0]; if (!active || !repository) return; try { const result = await repository.saveSwipe(groupId, active.id, kind); setSwipes(old => [...old.filter(item => item.listingId !== active.id), result.swipe]); } catch { setError("Your private choice was not saved. Please try again."); } };
+  if (loading) return <section className="page empty"><h1>Loading shared homes…</h1></section>;
+  if (error && !criteria) return <section className="page empty"><h1>Shared search unavailable</h1><p role="alert">{error}</p><Link className="button" to="/groups">My searches</Link></section>;
+  const active = deck[0];
+  return <section className="page discover"><p className="privacy-line">🔒 Your choices stay private unless you both Love the same home.</p>{error && <p role="alert" className="form-error">{error}</p>}<div className="deck-layout"><aside className="side"><p className="eyebrow">Shared listing set</p><h2>Our Home Search</h2><p>{listings.length} cached homes</p><Link className="text-link" to={`/groups/${groupId}/search`}>Search settings</Link></aside><div className="deck">{active && criteria ? <PropertyCard listing={active} score={calculateMatchScore(active, criteria)} detailsPath={`/groups/${groupId}/listings/${encodeURIComponent(active.id)}`} onDecide={kind => void decide(kind)} /> : <div className="empty"><h1>{listings.length ? "You’ve reviewed all available homes." : "No homes have been added to this search yet."}</h1><p>{listings.length ? "Refresh the search when you’re ready for new listings." : "Choose an area and find homes to start swiping together."}</p><Link className="button primary" to={`/groups/${groupId}/search`}>{listings.length ? "Refresh search" : "Find homes"}</Link></div>}</div><aside className="side tips"><p className="eyebrow">Private review</p><p>Only Love + Love creates a visible match.</p></aside></div><p className="provider-disclaimer">Listing information may change. Verify availability and details with a licensed real-estate professional.</p></section>;
+}
