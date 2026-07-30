@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { appBaseUrl, requestMagicLink } from "../lib/supabase";
+import { appBaseUrl, requestMagicLink, requestPasswordSignIn, requestPasswordSignUp } from "../lib/supabase";
 
 describe("appBaseUrl", () => {
   it.each([
@@ -29,5 +29,30 @@ it("passes the application root as the Magic Link email redirect", async () => {
   expect(signInWithOtp).toHaveBeenCalledWith({
     email: "person@example.com",
     options: { emailRedirectTo: appBaseUrl() },
+  });
+});
+
+describe("authentication request normalization", () => {
+  it("normalizes email before password sign-in reaches Supabase", async () => {
+    const signInWithPassword = vi.fn().mockResolvedValue({ data: {}, error: null });
+
+    await requestPasswordSignIn({ signInWithPassword } as never, " User@Example.COM ", "safe-pass-123");
+
+    expect(signInWithPassword).toHaveBeenCalledWith({
+      email: "user@example.com",
+      password: "safe-pass-123",
+    });
+  });
+
+  it("normalizes email and preserves the callback for password sign-up", async () => {
+    const signUp = vi.fn().mockResolvedValue({ data: { session: null }, error: null });
+
+    await requestPasswordSignUp({ signUp } as never, " User@Example.COM ", "safe-pass-123");
+
+    expect(signUp).toHaveBeenCalledWith({
+      email: "user@example.com",
+      password: "safe-pass-123",
+      options: { emailRedirectTo: appBaseUrl() },
+    });
   });
 });

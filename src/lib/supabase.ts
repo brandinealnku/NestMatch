@@ -29,5 +29,13 @@ export function appBaseUrl(base = import.meta.env.BASE_URL, documentUrl = docume
 }
 
 export function requestMagicLink(auth: Pick<NestMatchSupabaseClient["auth"], "signInWithOtp">, email: string) {
-  return auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: appBaseUrl() } });
+  return auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { emailRedirectTo: appBaseUrl() } });
+}
+
+export function requestPasswordSignIn(auth: Pick<NestMatchSupabaseClient["auth"], "signInWithPassword">, email: string, password: string) {
+  return auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+}
+
+export function requestPasswordSignUp(auth: Pick<NestMatchSupabaseClient["auth"], "signUp">, email: string, password: string) {
+  return auth.signUp({ email: email.trim().toLowerCase(), password, options: { emailRedirectTo: appBaseUrl() } });
 }
