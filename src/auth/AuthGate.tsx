@@ -1,0 +1,2 @@
+import { Navigate, useLocation } from "react-router-dom"; import { useAuth } from "./AuthProvider"; import type { ReactNode } from "react";
+export function AuthGate({ children }: { children: ReactNode }) { const auth = useAuth(), location = useLocation(); if (auth.isLoading) return <p role="status">Loading your account…</p>; if (!auth.user) return <Navigate to="/sign-in" state={{ from: location.pathname }} replace />; if (!auth.profile?.displayName.trim() && location.pathname !== "/profile") return <Navigate to="/profile" replace />; return children; }

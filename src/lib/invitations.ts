@@ -1,0 +1,2 @@
+export const buildInvitationUrl = (token: string, base = window.location.origin + import.meta.env.BASE_URL) => `${base.replace(/\/$/, "")}/#/invite/${encodeURIComponent(token)}`;
+export const sanitizeInvitationError = (status: number): string => status === 410 ? "This invitation has expired or is no longer available." : status === 409 ? "This invitation cannot be accepted because the search is already full or the invitation was used." : "We could not complete the invitation. Please try again safely.";

@@ -1,0 +1,1 @@
+export function NewGroupPage(){return <section className="panel"><h1>Create a shared search</h1><p>Group creation is available through the authenticated repository. Connected criteria and listing-deck setup arrives in Phase 3.</p></section>}

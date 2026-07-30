@@ -1,0 +1,1 @@
+import { Link } from "react-router-dom"; export function ConnectedGroupsPage(){return <section className="panel"><h1>My Searches</h1><p>The secure account, group, and invitation foundation is ready. Connected shared swiping arrives in Phase 3.</p><Link className="button" to="/groups/new">Create a search</Link></section>}

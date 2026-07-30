@@ -12,6 +12,10 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_LISTINGS_API_BASE_URL: ${{ vars.VITE_LISTINGS_API_BASE_URL }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
