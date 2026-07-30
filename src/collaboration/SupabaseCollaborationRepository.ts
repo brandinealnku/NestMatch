@@ -2,14 +2,15 @@ import type { NestMatchSupabaseClient } from "../lib/supabase";
 import type {
   CreateInvitationResponse,
   InvitationResponse,
-  Json,
-  MatchRow,
-  NotificationRow,
-  SearchGroupRow,
-  SwipeRow,
 } from "../types/database.types";
+import type { Json, Tables } from "../types/supabase-database.types";
 import type { Criteria, DecisionKind, Listing, PropertyType } from "../types/models";
 import type { CollaborationRepository, CreateGroupInput, HouseMatch, SearchGroup, SearchGroupDetail, SwipeResult, UserNotification, UserSwipe } from "./types";
+
+type MatchRow = Tables<"matches">;
+type NotificationRow = Tables<"notifications">;
+type SearchGroupRow = Tables<"search_groups">;
+type SwipeRow = Tables<"swipes">;
 
 const safeObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);

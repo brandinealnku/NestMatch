@@ -13,6 +13,16 @@ Phase 2 supplies authentication, profiles, two-person groups, private swipe stor
 
 The signup trigger creates `profiles.display_name` as an empty, non-null setup marker. The UI requires a trimmed name before protected navigation.
 
+### Regenerating TypeScript database types
+
+`src/types/supabase-database.types.ts` follows the Supabase CLI's generated schema shape and must stay in sync with the SQL migrations. With the local Supabase stack running, regenerate it with:
+
+```bash
+npm run types:supabase
+```
+
+For a linked remote project, use `supabase gen types typescript --linked > src/types/supabase-database.types.ts`; the linked project reference is intentionally not hardcoded. Review the generated diff against the committed migrations before committing it. The Supabase CLI is a contributor tool only and is not required by lint, tests, TypeScript, the Vite build, or Demo Mode.
+
 ## Authentication and Pages
 
 Set Supabase Authentication URL Configuration exactly as follows:
