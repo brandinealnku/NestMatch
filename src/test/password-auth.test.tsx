@@ -45,7 +45,7 @@ describe("password authentication fallback", () => {
     await user.type(screen.getByLabelText(/^password$/i), "safe-pass-123");
     await user.click(screen.getByRole("button", { name: /^sign in$/i }));
 
-    expect(auth.signInWithPassword).toHaveBeenCalledWith(" User@Example.COM ", "safe-pass-123");
+    expect(auth.signInWithPassword).toHaveBeenCalledWith("User@Example.COM", "safe-pass-123");
     expect(auth.signInWithMagicLink).not.toHaveBeenCalled();
   });
 
