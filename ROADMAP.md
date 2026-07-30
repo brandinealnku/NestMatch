@@ -24,3 +24,12 @@ Version 1 deliberately focuses on one person making local, property-criteria-bas
 - Saved-search synchronization
 - Advanced financial-planning inputs
 - Authorized richer listing feeds and administrative monitoring
+
+## v0.4 — Live Couple Match Beta (implemented)
+
+- Coherent authenticated group home with user-private progress, cached inventory, partner state, and explicit refresh.
+- Private connected review and Maybe management; matches remain database-created Love + Love records.
+- Active/archived Matches, RLS-aware Realtime with polling fallback, notification acknowledgment, shared match notes, and comparison for two or three matches.
+- Installable GitHub Pages PWA shell with safe caching and mobile layouts.
+
+Deferred: Google/Apple provider configuration, push notifications, agents, tours, mortgage tools, subscriptions, additional listing providers, and all public-launch hardening.

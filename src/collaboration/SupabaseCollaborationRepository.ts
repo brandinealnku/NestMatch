@@ -5,7 +5,7 @@ import type {
 } from "../types/database.types";
 import type { Json, Tables } from "../types/supabase-database.types";
 import type { Criteria, DecisionKind, Listing, PropertyType } from "../types/models";
-import type { CollaborationRepository, CreateGroupInput, HouseMatch, SearchGroup, SearchGroupDetail, SwipeResult, UserNotification, UserSwipe } from "./types";
+import type { CollaborationRepository, CreateGroupInput, HouseMatch, MatchNote, SearchGroup, SearchGroupDetail, SwipeResult, UserNotification, UserSwipe } from "./types";
 import type { CachedListingInventory, ListingSearchRequest, ListingSearchResponse } from "../listings/listingTypes";
 
 type MatchRow = Tables<"matches">;
@@ -110,10 +110,17 @@ export class SupabaseCollaborationRepository implements CollaborationRepository 
   }
 
   async getGroup(groupId: string): Promise<SearchGroupDetail> {
-    const { data, error } = await this.client.from("search_groups").select("id,name,criteria").eq("id", groupId).single();
+    const { data, error } = await this.client.from("search_groups").select("id,name,criteria,owner_id").eq("id", groupId).single();
     if (error) throw databaseFailure();
     if (!isCriteria(data.criteria)) throw new Error("Search details are unavailable.");
-    return { id: data.id, name: data.name, partnerName: "Partner", criteria: data.criteria };
+    const { data: members, error: memberError } = await this.client.from("group_members").select("user_id").eq("group_id", groupId).eq("status", "active");
+    if (memberError) throw databaseFailure();
+    const ids = (members ?? []).map(item => item.user_id);
+    const { data: profiles, error: profileError } = ids.length ? await this.client.from("profiles").select("id,display_name").in("id", ids) : { data: [], error: null };
+    if (profileError) throw databaseFailure();
+    const names = new Map((profiles ?? []).map(item => [item.id, item.display_name || "NestMatch member"]));
+    const partnerId = ids.find(id => id !== this.userId);
+    return { id: data.id, name: data.name, ownerId: data.owner_id, memberCount: ids.length, currentUserName: names.get(this.userId) ?? "You", partnerName: partnerId ? names.get(partnerId) ?? "Your person" : "Invitation pending", criteria: data.criteria };
   }
 
   async updateCriteria(groupId: string, criteria: Criteria) {
@@ -160,8 +167,10 @@ export class SupabaseCollaborationRepository implements CollaborationRepository 
     return (data ?? []).map(toUserSwipe);
   }
 
-  async getMatches(groupId: string): Promise<HouseMatch[]> {
-    const { data, error } = await this.client.from("matches").select("id,group_id,listing_id,created_at,status").eq("group_id", groupId).eq("status", "active");
+  async getMatches(groupId: string, includeArchived = false): Promise<HouseMatch[]> {
+    let query = this.client.from("matches").select("id,group_id,listing_id,created_at,status").eq("group_id", groupId);
+    if (!includeArchived) query = query.eq("status", "active");
+    const { data, error } = await query.order("created_at", { ascending: false });
     if (error) throw databaseFailure();
     return (data ?? []).map(toHouseMatch);
   }
@@ -186,6 +195,24 @@ export class SupabaseCollaborationRepository implements CollaborationRepository 
 
   async markNotificationRead(id: string) { const { error } = await this.client.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id).eq("user_id", this.userId); if (error) throw databaseFailure(); }
   async archiveMatch(id: string) { const { error } = await this.client.from("matches").update({ status: "archived" }).eq("id", id); if (error) throw databaseFailure(); }
+  async getMatchNotes(matchId: string): Promise<MatchNote[]> {
+    const { data, error } = await this.client.from("match_notes").select("id,match_id,group_id,author_id,body,created_at,updated_at").eq("match_id", matchId).order("created_at");
+    if (error) throw databaseFailure();
+    const authorIds = [...new Set((data ?? []).map(note => note.author_id))];
+    const { data: profiles, error: profilesError } = authorIds.length ? await this.client.from("profiles").select("id,display_name").in("id", authorIds) : { data: [], error: null };
+    if (profilesError) throw databaseFailure();
+    const names = new Map((profiles ?? []).map(profile => [profile.id, profile.display_name || "NestMatch member"]));
+    return (data ?? []).map(note => ({ id: note.id, matchId: note.match_id, groupId: note.group_id, authorId: note.author_id, authorName: names.get(note.author_id) ?? "NestMatch member", body: note.body, createdAt: note.created_at, updatedAt: note.updated_at }));
+  }
+  async createMatchNote(matchId: string, groupId: string, body: string): Promise<MatchNote> {
+    const trimmed = body.trim();
+    if (!trimmed || trimmed.length > 1000) throw new Error("Enter a note of 1,000 characters or fewer.");
+    const { data, error } = await this.client.from("match_notes").insert({ match_id: matchId, group_id: groupId, author_id: this.userId, body: trimmed }).select("id,match_id,group_id,author_id,body,created_at,updated_at").single();
+    if (error) throw databaseFailure();
+    return { id: data.id, matchId: data.match_id, groupId: data.group_id, authorId: data.author_id, authorName: "You", body: data.body, createdAt: data.created_at, updatedAt: data.updated_at };
+  }
+  async updateMatchNote(noteId: string, body: string) { const trimmed = body.trim(); if (!trimmed || trimmed.length > 1000) throw new Error("Enter a note of 1,000 characters or fewer."); const { error } = await this.client.from("match_notes").update({ body: trimmed }).eq("id", noteId).eq("author_id", this.userId); if (error) throw databaseFailure(); }
+  async deleteMatchNote(noteId: string) { const { error } = await this.client.from("match_notes").delete().eq("id", noteId).eq("author_id", this.userId); if (error) throw databaseFailure(); }
   async reset() { /* Connected data is never erased by the demo reset. */ }
   async createInvitation(groupId: string): Promise<CreateInvitationResponse> {
     const data = await invoke(this.client, "create-invite", { groupId });

@@ -108,3 +108,47 @@ See [the complete Supabase setup guide](docs/SUPABASE_SETUP.md) for Auth redirec
 ### Phase 2.5: mobile social auth and sharing
 
 Optional Apple and Google OAuth now lead the mobile sign-in experience, with Magic Link retained as the passwordless fallback. Provider buttons are independently controlled by `VITE_ENABLE_APPLE_AUTH` and `VITE_ENABLE_GOOGLE_AUTH`; credentials remain in the provider consoles and Supabase. Invitations persist only their raw one-time token in `sessionStorage`, return through the existing PKCE callback/profile flow, and are validated by the secure acceptance function. Invitation owners can use the native Web Share sheet or accessible clipboard fallbacks. See [the setup and mobile test guide](docs/SUPABASE_SETUP.md#google-oauth).
+
+## v0.4 Live Couple Match Beta
+
+v0.4 is a private, testable two-person connected experience: an authenticated shared-search dashboard, private cached-listing review, a private Maybe list, database-backed mutual Matches, RLS-filtered Realtime updates, one-time notification-backed celebrations, shared match notes, two/three-home comparison, and an installable app shell. Demo Mode and Magic Link remain available; Google and Apple code/flags are preserved but provider configuration is deferred. This beta is not public-production readiness. Agent, tour, mortgage, subscription, additional-provider, and public-launch workflows remain out of scope.
+
+Apply the additive notes/Realtime migration with `npx supabase db push`. Enable Realtime replication for `matches`, `notifications`, and `match_notes` (the migration adds these tables to `supabase_realtime`; confirm them in **Database → Replication**). Deploy the existing invitation and listing Edge Functions as documented below. Normal page loads use `group_listings`; only the owner’s explicit Find/Refresh action calls RentCast.
+
+### Install on a phone
+
+- **iPhone/iPad (Safari):** open the deployed NestMatch URL, tap **Share**, then **Add to Home Screen** and **Add**.
+- **Android (Chrome):** open NestMatch, use **Install app** in the browser menu or install prompt, then confirm.
+
+The service worker caches only the public app shell and icons. Navigations are network-first, Supabase/auth/invitation URLs are never handled by the cache, and authenticated API responses are not cached. An offline page explains how to reconnect; reopening online reloads persisted Supabase data.
+
+### Brandi and Joe beta checklist
+
+1. Brandi opens NestMatch on her phone.
+2. Brandi signs in with Magic Link.
+3. Brandi creates or opens the shared search.
+4. Brandi loads real Cincinnati/Northern Kentucky listings if needed.
+5. Brandi invites Joe.
+6. Joe opens the invitation on his phone.
+7. Joe signs in and joins.
+8. Both add NestMatch to their home screens.
+9. Brandi reviews at least five listings.
+10. Joe must not see Brandi’s individual decisions.
+11. Joe reviews the same inventory independently.
+12. They Love at least one of the same homes.
+13. Exactly one match is created.
+14. Both see the match without manually reloading.
+15. Both see the celebration once.
+16. Both see their own notification.
+17. Brandi adds a shared note.
+18. Joe can read it and add his own.
+19. Each user can edit only their own note.
+20. They compare two matched homes.
+21. They close and reopen the app.
+22. Listings, swipes, matches, notifications, and notes persist.
+23. No normal reload consumes a RentCast request.
+24. A third account cannot access the group.
+
+**Beta feedback:** record sign-in friction, invitation friction, search clarity, swipe speed, match excitement, note usefulness, comparison usefulness, bugs, missing information, and whether each person would use NestMatch again.
+
+Known limitations: no browser push, background sync, native app, chat, Google/Apple provider configuration, tours, agents, financing, or public onboarding. Realtime falls back to a 30-second poll and manual refresh. Listing photos and fields depend on the cached provider snapshot. Match archiving remains owner-controlled by RLS.

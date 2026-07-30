@@ -1,0 +1,14 @@
+{
+  "name": "NestMatch",
+  "short_name": "NestMatch",
+  "description": "Review homes privately and discover the ones you both love.",
+  "start_url": "/NestMatch/#/",
+  "scope": "/NestMatch/",
+  "display": "standalone",
+  "background_color": "#fffaf4",
+  "theme_color": "#24483d",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
