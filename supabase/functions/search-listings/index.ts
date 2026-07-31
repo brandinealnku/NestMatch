@@ -1,5 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { context, cors, json, objectBody } from "../_shared/http.ts";
+import { buildRentCastQuery, normalizeRentCastPayload } from "./rentcast.ts";
+export { normalizeRentCast, toRentCastMinimumRange, toRentCastPriceRange } from "./rentcast.ts";
 
 export interface ListingSearchRequest {
   groupId: string;
@@ -15,7 +17,6 @@ const object = (value: unknown): value is Record<string, unknown> => !!value && 
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 const optionalNumber = (value: unknown, max: number) => value === undefined || (finite(value) && value >= 0 && value <= max);
 const safeText = (value: unknown, max = 5000) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= max ? value.trim() : undefined;
-const safeUrl = (value: unknown) => { const text = safeText(value, 2048); if (!text) return undefined; try { const url = new URL(text); return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined; } catch { return undefined; } };
 
 export function validateRequest(value: Record<string, unknown>): ListingSearchRequest | undefined {
   if (Object.keys(value).some((key) => !["groupId", "location", "criteria", "refresh"].includes(key))) return undefined;
@@ -38,25 +39,6 @@ export function validateRequest(value: Record<string, unknown>): ListingSearchRe
   if (input.propertyTypes !== undefined && (!Array.isArray(input.propertyTypes) || input.propertyTypes.length > 10 || input.propertyTypes.some((item) => !safeText(item, 50)))) return undefined;
   const criteria = { minPrice: input.minPrice as number | undefined, maxPrice: input.maxPrice as number | undefined, minBedrooms: input.minBedrooms as number | undefined, minBathrooms: input.minBathrooms as number | undefined, propertyTypes: input.propertyTypes as string[] | undefined };
   return { groupId: value.groupId, location, criteria, refresh: value.refresh === true };
-}
-
-export function normalizeRentCast(value: unknown, fetchedAt: string) {
-  if (!object(value)) return undefined;
-  const providerListingId = safeText(value.id, 200), formattedAddress = safeText(value.formattedAddress, 300) ?? safeText(value.addressLine1, 200);
-  if (!providerListingId || !formattedAddress || !finite(value.price) || value.price < 0) return undefined;
-  const optional = (key: string, max = Number.MAX_SAFE_INTEGER) => finite(value[key]) && (value[key] as number) >= 0 && (value[key] as number) <= max ? value[key] as number : undefined;
-  const agent = object(value.listingAgent) ? safeText(value.listingAgent.name, 150) : undefined;
-  const office = object(value.listingOffice) ? safeText(value.listingOffice.name, 150) : undefined;
-  const providerType = safeText(value.propertyType, 100);
-  const propertyType = ["Single-family", "Condo", "Townhouse", "Multi-family", "Manufactured", "Other"].includes(providerType ?? "") ? providerType : providerType ? "Other" : undefined;
-  return {
-    id: `rentcast:${providerListingId}`, provider: "rentcast" as const, providerListingId, source: "rentcast" as const, sourceLabel: "RentCast", isDemo: false,
-    status: "active" as const, formattedAddress, addressLine1: safeText(value.addressLine1, 200) ?? formattedAddress, addressLine2: safeText(value.addressLine2, 100), city: safeText(value.city, 100) ?? "", state: safeText(value.state, 2) ?? "", zipCode: safeText(value.zipCode, 10) ?? "",
-    price: value.price, bedrooms: optional("bedrooms", 100), bathrooms: optional("bathrooms", 100), squareFeet: optional("squareFootage"), lotSize: optional("lotSize"), lotSquareFeet: optional("lotSize"), yearBuilt: optional("yearBuilt", 3000), propertyType,
-    latitude: finite(value.latitude) && value.latitude >= -90 && value.latitude <= 90 ? value.latitude : undefined, longitude: finite(value.longitude) && value.longitude >= -180 && value.longitude <= 180 ? value.longitude : undefined,
-    listedDate: safeText(value.listedDate, 40), daysOnMarket: optional("daysOnMarket", 100000), description: safeText(value.description), imageUrls: [] as string[], photoUrls: [] as string[], listingUrl: safeUrl(value.listingUrl), providerUrl: safeUrl(value.listingUrl), fetchedAt,
-    attribution: agent || office ? { agentName: agent, officeName: office } : undefined, listingAgentName: agent, listingOfficeName: office,
-  };
 }
 
 const errorResponse = (message: string, status: number, origin: string | null) => json({ error: message }, status, origin);
@@ -88,20 +70,21 @@ Deno.serve(async (req) => {
     const criteria = { ...saved, ...input.criteria, mode: input.location.type, ...(input.location.type === "city" ? { city: input.location.city, state: input.location.state, zipCode: "" } : { city: "", state: "", zipCode: input.location.zipCode }) };
     const { error: criteriaError } = await auth.admin.from("search_groups").update({ criteria }).eq("id", input.groupId);
     if (criteriaError) return errorResponse("Unable to save search criteria", 500, origin);
-    const query = new URLSearchParams({ status: "Active", limit: String(Math.min(DEFAULT_LIMIT, MAX_LIMIT)) });
-    if (input.location.type === "city") { query.set("city", input.location.city); query.set("state", input.location.state); } else query.set("zipCode", input.location.zipCode);
-    if (input.criteria?.minPrice !== undefined) query.set("minPrice", String(input.criteria.minPrice));
-    if (input.criteria?.maxPrice !== undefined) query.set("maxPrice", String(input.criteria.maxPrice));
-    if (input.criteria?.minBedrooms !== undefined) query.set("bedrooms", String(input.criteria.minBedrooms));
-    if (input.criteria?.minBathrooms !== undefined) query.set("bathrooms", String(input.criteria.minBathrooms));
-    if (input.criteria?.propertyTypes?.length) query.set("propertyType", input.criteria.propertyTypes.join(","));
+    const query = buildRentCastQuery(input.location, input.criteria, Math.min(DEFAULT_LIMIT, MAX_LIMIT));
     const provider = await fetch(`https://api.rentcast.io/v1/listings/sale?${query}`, { headers: { Accept: "application/json", "X-Api-Key": key } });
     if (!provider.ok) return errorResponse(provider.status === 429 ? "Listing provider rate limit reached" : provider.status === 401 ? "Listing provider authentication failed" : "Listing provider unavailable", provider.status === 429 ? 429 : provider.status === 401 ? 502 : 502, origin);
     let payload: unknown;
     try { payload = await provider.json(); } catch { return errorResponse("Listing provider returned an invalid response", 502, origin); }
     if (!Array.isArray(payload)) return errorResponse("Listing provider returned an invalid response", 502, origin);
     const fetchedAt = new Date().toISOString();
-    const listings = payload.slice(0, MAX_LIMIT).flatMap((item) => { const listing = normalizeRentCast(item, fetchedAt); return listing ? [listing] : []; });
+    const normalized = normalizeRentCastPayload(payload, fetchedAt, MAX_LIMIT);
+    const listings = normalized.listings;
+    console.log("RentCast listing search result", {
+      providerCount: normalized.providerCount,
+      normalizedCount: listings.length,
+      locationType: input.location.type,
+    });
+    if (normalized.error) return errorResponse(normalized.error, normalized.status, origin);
     if (listings.length) {
       const rows = listings.map((listing) => ({ group_id: input.groupId, listing_id: listing.id, listing_snapshot: listing, source: "rentcast", fetched_at: fetchedAt }));
       const { error } = await auth.admin.from("group_listings").upsert(rows, { onConflict: "group_id,listing_id" });
