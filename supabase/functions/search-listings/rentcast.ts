@@ -6,6 +6,46 @@ export interface RentCastCriteria {
   propertyTypes?: string[];
 }
 
+const providerCriteriaKeys = ["minPrice", "maxPrice", "minBedrooms", "minBathrooms", "propertyTypes"] as const;
+
+export function positiveOptional(value?: number): number | undefined {
+  return value !== undefined && value > 0 ? value : undefined;
+}
+
+export function normalizeRentCastCriteria(criteria?: RentCastCriteria): RentCastCriteria {
+  return {
+    minPrice: positiveOptional(criteria?.minPrice),
+    maxPrice: positiveOptional(criteria?.maxPrice),
+    minBedrooms: positiveOptional(criteria?.minBedrooms),
+    minBathrooms: positiveOptional(criteria?.minBathrooms),
+    ...(criteria?.propertyTypes !== undefined ? { propertyTypes: [...criteria.propertyTypes] } : {}),
+  };
+}
+
+/** Replaces provider filters while retaining scoring and preference fields. */
+export function buildSavedCriteria(
+  saved: Record<string, unknown>,
+  submitted: RentCastCriteria | undefined,
+  location: RentCastLocation,
+): Record<string, unknown> {
+  const preserved = { ...saved };
+  for (const key of providerCriteriaKeys) delete preserved[key];
+  const current = normalizeRentCastCriteria(submitted);
+  const providerCriteria = Object.fromEntries(
+    Object.entries(current).filter(([, value]) => value !== undefined),
+  );
+  return {
+    ...preserved,
+    ...providerCriteria,
+    // An omitted property-type list is also a cleared provider filter.
+    propertyTypes: current.propertyTypes ?? [],
+    mode: location.type,
+    ...(location.type === "city"
+      ? { city: location.city, state: location.state, zipCode: "" }
+      : { city: "", state: "", zipCode: location.zipCode }),
+  };
+}
+
 export type RentCastLocation =
   | { type: "city"; city: string; state: string }
   | { type: "zip"; zipCode: string };
@@ -59,6 +99,7 @@ export function buildRentCastQuery(
   criteria: RentCastCriteria | undefined,
   limit: number,
 ): URLSearchParams {
+  const normalized = normalizeRentCastCriteria(criteria);
   const query = new URLSearchParams({ status: "Active", limit: String(limit) });
   if (location.type === "city") {
     query.set("city", location.city);
@@ -67,13 +108,13 @@ export function buildRentCastQuery(
     query.set("zipCode", location.zipCode);
   }
 
-  const price = toRentCastPriceRange(criteria?.minPrice, criteria?.maxPrice);
+  const price = toRentCastPriceRange(normalized.minPrice, normalized.maxPrice);
   if (price) query.set("price", price);
-  const bedrooms = toRentCastMinimumRange(criteria?.minBedrooms);
+  const bedrooms = toRentCastMinimumRange(normalized.minBedrooms);
   if (bedrooms) query.set("bedrooms", bedrooms);
-  const bathrooms = toRentCastMinimumRange(criteria?.minBathrooms);
+  const bathrooms = toRentCastMinimumRange(normalized.minBathrooms);
   if (bathrooms) query.set("bathrooms", bathrooms);
-  const propertyTypes = criteria?.propertyTypes
+  const propertyTypes = normalized.propertyTypes
     ?.flatMap((type) => type in rentCastPropertyTypes
       ? [rentCastPropertyTypes[type as keyof typeof rentCastPropertyTypes]]
       : []);

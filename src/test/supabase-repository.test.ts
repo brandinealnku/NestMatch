@@ -47,6 +47,23 @@ describe("typed Supabase row mapping", () => {
 });
 
 describe("database JSON validation", () => {
+  it("accepts reloaded group criteria with cleared provider minimums and price", () => {
+    const cleared: Json = {
+      mode: "zip",
+      city: "",
+      state: "",
+      zipCode: "41042",
+      radius: 25,
+      propertyTypes: [],
+      preferredTypes: ["Single-family"],
+      hoaEssential: false,
+      yearEssential: false,
+      daysEssential: false,
+      includeMissing: true,
+    };
+    expect(isCriteria(JSON.parse(JSON.stringify(cleared)) as Json)).toBe(true);
+  });
+
   it("rejects malformed criteria", () => {
     const malformed: Json = { mode: "spaceship", maxPrice: "a lot" };
     expect(isCriteria(malformed)).toBe(false);

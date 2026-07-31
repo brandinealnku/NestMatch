@@ -25,8 +25,8 @@ export function isCriteria(value: Json): value is Json & Criteria {
   if (!safeObject(value)) return false;
   return (value.mode === "city" || value.mode === "zip")
     && [value.city, value.state, value.zipCode].every(isString)
-    && [value.radius, value.maxPrice, value.minBedrooms, value.minBathrooms].every(isNumber)
-    && [value.idealPrice, value.minPrice, value.minSquareFeet, value.preferredSquareFeet, value.maxHoa, value.minYearBuilt, value.maxDaysOnMarket].every(isOptionalNumber)
+    && isNumber(value.radius)
+    && [value.idealPrice, value.minPrice, value.maxPrice, value.minBedrooms, value.minBathrooms, value.minSquareFeet, value.preferredSquareFeet, value.maxHoa, value.minYearBuilt, value.maxDaysOnMarket].every(isOptionalNumber)
     && Array.isArray(value.propertyTypes) && value.propertyTypes.every(isPropertyType)
     && Array.isArray(value.preferredTypes) && value.preferredTypes.every(isPropertyType)
     && [value.hoaEssential, value.yearEssential, value.daysEssential, value.includeMissing].every((item) => typeof item === "boolean");

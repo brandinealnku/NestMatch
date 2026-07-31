@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { context, cors, json, objectBody } from "../_shared/http.ts";
-import { buildRentCastQuery, normalizeRentCastPayload } from "./rentcast.ts";
-export { normalizeRentCast, toRentCastMinimumRange, toRentCastPriceRange } from "./rentcast.ts";
+import { buildRentCastQuery, buildSavedCriteria, normalizeRentCastCriteria, normalizeRentCastPayload } from "./rentcast.ts";
+export { normalizeRentCast, positiveOptional, toRentCastMinimumRange, toRentCastPriceRange } from "./rentcast.ts";
 
 export interface ListingSearchRequest {
   groupId: string;
@@ -67,10 +67,11 @@ Deno.serve(async (req) => {
   locks.set(input.groupId, Date.now() + 15_000);
   try {
     const saved = object(group.criteria) ? group.criteria : {};
-    const criteria = { ...saved, ...input.criteria, mode: input.location.type, ...(input.location.type === "city" ? { city: input.location.city, state: input.location.state, zipCode: "" } : { city: "", state: "", zipCode: input.location.zipCode }) };
+    const normalizedCriteria = normalizeRentCastCriteria(input.criteria);
+    const criteria = buildSavedCriteria(saved, normalizedCriteria, input.location);
     const { error: criteriaError } = await auth.admin.from("search_groups").update({ criteria }).eq("id", input.groupId);
     if (criteriaError) return errorResponse("Unable to save search criteria", 500, origin);
-    const query = buildRentCastQuery(input.location, input.criteria, Math.min(DEFAULT_LIMIT, MAX_LIMIT));
+    const query = buildRentCastQuery(input.location, normalizedCriteria, Math.min(DEFAULT_LIMIT, MAX_LIMIT));
     const provider = await fetch(`https://api.rentcast.io/v1/listings/sale?${query}`, { headers: { Accept: "application/json", "X-Api-Key": key } });
     if (!provider.ok) return errorResponse(provider.status === 429 ? "Listing provider rate limit reached" : provider.status === 401 ? "Listing provider authentication failed" : "Listing provider unavailable", provider.status === 429 ? 429 : provider.status === 401 ? 502 : 502, origin);
     let payload: unknown;
@@ -83,6 +84,12 @@ Deno.serve(async (req) => {
       providerCount: normalized.providerCount,
       normalizedCount: listings.length,
       locationType: input.location.type,
+      appliedFilters: {
+        price: Boolean(normalizedCriteria.minPrice || normalizedCriteria.maxPrice),
+        bedrooms: Boolean(normalizedCriteria.minBedrooms),
+        bathrooms: Boolean(normalizedCriteria.minBathrooms),
+        propertyTypes: Boolean(normalizedCriteria.propertyTypes?.length),
+      },
     });
     if (normalized.error) return errorResponse(normalized.error, normalized.status, origin);
     if (listings.length) {
