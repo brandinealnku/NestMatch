@@ -51,9 +51,15 @@ function toJson(value: unknown): Json {
   throw new Error("Search details contain unsupported values.");
 }
 
-export const toSearchGroup = (row: Pick<SearchGroupRow, "id" | "name">): SearchGroup => ({
+export type CollaborationErrorCode = "database_setup" | "invalid" | "session" | "owner" | "not_configured" | "unavailable";
+export class CollaborationError extends Error {
+  constructor(public readonly code: CollaborationErrorCode) { super(code); }
+}
+
+export const toSearchGroup = (row: Pick<SearchGroupRow, "id" | "name"> & Partial<Pick<SearchGroupRow, "description">>): SearchGroup => ({
   id: row.id,
   name: row.name,
+  ...(row.description ? { description: row.description } : {}),
   partnerName: "Partner",
 });
 export const toUserSwipe = (row: Pick<SwipeRow, "listing_id" | "decision" | "updated_at">): UserSwipe => ({
@@ -85,7 +91,22 @@ export const toUserNotification = (
   };
 };
 
-const databaseFailure = () => new Error("The collaboration request could not be completed.");
+const databaseFailure = (error?: { code?: string; message?: string } | null) => {
+  if (import.meta.env.DEV && error) console.error("NestMatch collaboration database error", error.code, error.message);
+  const missing = error?.code === "42P01" || error?.code === "42703" || error?.code === "PGRST205";
+  return new CollaborationError(missing ? "database_setup" : "unavailable");
+};
+async function listingFailure(error: { context?: unknown } | null): Promise<CollaborationError> {
+  const response = error?.context instanceof Response ? error.context : undefined;
+  const status = response?.status;
+  let providerMessage = "";
+  try { providerMessage = String((await response?.clone().json() as { error?: unknown } | undefined)?.error ?? ""); } catch { /* response details are optional */ }
+  if (status === 400) return new CollaborationError("invalid");
+  if (status === 401) return new CollaborationError("session");
+  if (status === 403 || /owner/i.test(providerMessage)) return new CollaborationError("owner");
+  if (/not configured/i.test(providerMessage)) return new CollaborationError("not_configured");
+  return new CollaborationError("unavailable");
+}
 async function invoke(client: NestMatchSupabaseClient, name: string, body: Record<string, string>) {
   const { data, error } = await client.functions.invoke(name, { body });
   if (error || !safeObject(data)) throw new Error("The secure request could not be completed.");
@@ -96,21 +117,25 @@ export class SupabaseCollaborationRepository implements CollaborationRepository 
   constructor(private readonly client: NestMatchSupabaseClient, private readonly userId: string) {}
 
   async listGroups(): Promise<SearchGroup[]> {
-    const { data, error } = await this.client.from("search_groups").select("id,name").eq("status", "active");
-    if (error) throw databaseFailure();
+    const { data, error } = await this.client.from("search_groups").select("id,name,description").eq("status", "active");
+    if (error) throw databaseFailure(error);
     return (data ?? []).map(toSearchGroup);
   }
 
   async createGroup(input: CreateGroupInput): Promise<SearchGroup> {
     const criteria = toJson(input.criteria);
     if (!isCriteria(criteria)) throw new Error("Search details are invalid.");
-    const { data, error } = await this.client.from("search_groups").insert({ owner_id: this.userId, name: input.name?.trim() || "Our Home Search", criteria }).select("id,name").single();
-    if (error) throw databaseFailure();
-    return { id: data.id, name: data.name, partnerName: "Waiting for partner" };
+    const name = input.name?.trim();
+    if (!name || name.length > 100) throw new CollaborationError("invalid");
+    const description = input.description?.trim() || null;
+    const { data, error } = await this.client.from("search_groups").insert({ owner_id: this.userId, name, description, criteria }).select("id,name,description").single();
+    if (error) throw databaseFailure(error);
+    if (!data?.id) throw new CollaborationError("unavailable");
+    return { ...toSearchGroup(data), partnerName: "Waiting for partner" };
   }
 
   async getGroup(groupId: string): Promise<SearchGroupDetail> {
-    const { data, error } = await this.client.from("search_groups").select("id,name,criteria,owner_id").eq("id", groupId).single();
+    const { data, error } = await this.client.from("search_groups").select("id,name,description,criteria,owner_id").eq("id", groupId).single();
     if (error) throw databaseFailure();
     if (!isCriteria(data.criteria)) throw new Error("Search details are unavailable.");
     const { data: members, error: memberError } = await this.client.from("group_members").select("user_id").eq("group_id", groupId).eq("status", "active");
@@ -120,7 +145,7 @@ export class SupabaseCollaborationRepository implements CollaborationRepository 
     if (profileError) throw databaseFailure();
     const names = new Map((profiles ?? []).map(item => [item.id, item.display_name || "NestMatch member"]));
     const partnerId = ids.find(id => id !== this.userId);
-    return { id: data.id, name: data.name, ownerId: data.owner_id, memberCount: ids.length, currentUserName: names.get(this.userId) ?? "You", partnerName: partnerId ? names.get(partnerId) ?? "Your person" : "Invitation pending", criteria: data.criteria };
+    return { id: data.id, name: data.name, description: data.description ?? undefined, ownerId: data.owner_id, memberCount: ids.length, currentUserName: names.get(this.userId) ?? "You", currentUserRole: data.owner_id === this.userId ? "owner" : "member", partnerName: partnerId ? names.get(partnerId) ?? "Your person" : "Invitation pending", criteria: data.criteria };
   }
 
   async updateCriteria(groupId: string, criteria: Criteria) {
@@ -144,7 +169,8 @@ export class SupabaseCollaborationRepository implements CollaborationRepository 
 
   async searchListings(input: ListingSearchRequest): Promise<ListingSearchResponse> {
     const { data, error } = await this.client.functions.invoke("search-listings", { body: input });
-    if (error || !safeObject(data) || !Array.isArray(data.listings) || !isString(data.fetchedAt)) throw new Error("The listing search could not be completed.");
+    if (error) throw await listingFailure(error);
+    if (!safeObject(data) || !Array.isArray(data.listings) || !isString(data.fetchedAt)) throw new CollaborationError("unavailable");
     const listings = data.listings.flatMap((item: Json) => isListing(item) ? [item] : []);
     return { listings, total: listings.length, fetchedAt: data.fetchedAt, source: "rentcast" };
   }

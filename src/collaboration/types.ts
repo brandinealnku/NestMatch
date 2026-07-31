@@ -1,9 +1,9 @@
 import type { Criteria, DecisionKind, Listing } from "../types/models";
 import type { CachedListingInventory, ListingSearchRequest, ListingSearchResponse } from "../listings/listingTypes";
 
-export interface SearchGroup { id: string; name: string; partnerName: string }
-export interface SearchGroupDetail extends SearchGroup { criteria: Criteria; ownerId?: string; memberCount?: number; currentUserName?: string }
-export interface CreateGroupInput { name?: string; criteria: Criteria }
+export interface SearchGroup { id: string; name: string; partnerName: string; description?: string }
+export interface SearchGroupDetail extends SearchGroup { criteria: Criteria; ownerId?: string; memberCount?: number; currentUserName?: string; currentUserRole?: "owner" | "member" }
+export interface CreateGroupInput { name?: string; description?: string; criteria: Criteria }
 export interface UserSwipe { listingId: string; decision: DecisionKind; savedAt: string }
 export interface HouseMatch { id: string; groupId: string; listingId: string; createdAt: string; archived: boolean }
 export interface UserNotification { id: string; groupId: string; matchId: string; listingId: string; createdAt: string; readAt?: string }
