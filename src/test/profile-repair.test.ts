@@ -5,6 +5,11 @@ import supabaseBrowserSource from "../lib/supabase.ts?raw";
 import migration from "../../supabase/migrations/20260731120000_repair_profile_creation.sql?raw";
 import foundationMigration from "../../supabase/migrations/20260730170000_phase2_collaboration.sql?raw";
 
+function withoutSqlComments(sql: string): string {
+  return sql
+    .replace(/--.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+}
 
 function clientFor(updateResult: object, insertResult = { error: null }) {
   const maybeSingle = vi.fn().mockResolvedValue(updateResult);
@@ -17,11 +22,23 @@ function clientFor(updateResult: object, insertResult = { error: null }) {
 }
 
 describe("profile creation repair migration", () => {
-  it("uses one provider-independent auth.users trigger for password and Magic Link signups", () => {
-    expect(migration).toMatch(/after insert on auth\.users/i);
-    expect(migration).not.toMatch(/provider|email.*=/i);
-    expect(migration).toMatch(/security definer[\s\S]*set search_path\s*=\s*''/i);
-    expect(migration).toMatch(/on conflict \(id\) do nothing/i);
+  it("uses one provider-independent auth.users trigger for every signup method", () => {
+    const executableSql = withoutSqlComments(migration);
+
+    expect(executableSql).toMatch(/after insert on auth\.users/i);
+    expect(executableSql).toMatch(
+      /for each row\s+execute function private\.new_profile\(\)/i,
+    );
+
+    expect(executableSql).not.toMatch(
+      /raw_app_meta_data|raw_user_meta_data|app_metadata|provider\s*=|email\s*=|new\.email/i,
+    );
+
+    expect(executableSql).toMatch(
+      /security definer[\s\S]*set search_path\s*=\s*''/i,
+    );
+
+    expect(executableSql).toMatch(/on conflict \(id\) do nothing/i);
   });
 
   it("backfills only missing rows and preserves completed display names", () => {
