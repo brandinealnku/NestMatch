@@ -16,3 +16,6 @@
 @media(max-width:700px){.stats-grid{grid-template-columns:repeat(2,1fr)}.comparison-cards{display:block}.comparison-cards article{margin-bottom:1rem}.page{padding-bottom:calc(5rem + env(safe-area-inset-bottom))}.group-actions .button,.group-actions button{min-height:44px}.match-modal{animation:none}}
 @media(prefers-reduced-motion:reduce){.match-modal,*{scroll-behavior:auto!important;animation-duration:.01ms!important}}
 .mobile-group-nav{display:none}@media(max-width:700px){.mobile-group-nav{position:fixed;display:grid;grid-template-columns:repeat(5,1fr);bottom:0;left:0;right:0;z-index:10;background:#fff;border-top:1px solid #ccd8d3;padding-bottom:env(safe-area-inset-bottom)}.mobile-group-nav a{min-height:52px;display:grid;place-items:center;font-size:.75rem;text-decoration:none;color:#31544a}.mobile-group-nav a.active{font-weight:800;background:#e5f0ec;color:#173f35}}
+
+.search-setup textarea{width:100%;max-width:100%;box-sizing:border-box;resize:vertical}
+.groups-page .search-setup{margin-top:1rem}

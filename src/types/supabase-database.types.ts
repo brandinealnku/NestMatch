@@ -18,9 +18,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "profiles_id_fkey"; columns: ["id"]; isOneToOne: true; referencedRelation: "users"; referencedColumns: ["id"] }];
       };
       search_groups: {
-        Row: { id: string; owner_id: string; name: string; criteria: Json; status: Database["public"]["Enums"]["group_status"]; max_members: number; created_at: string; updated_at: string };
-        Insert: { id?: string; owner_id: string; name: string; criteria: Json; status?: Database["public"]["Enums"]["group_status"]; max_members?: number; created_at?: string; updated_at?: string };
-        Update: { id?: string; owner_id?: string; name?: string; criteria?: Json; status?: Database["public"]["Enums"]["group_status"]; max_members?: number; created_at?: string; updated_at?: string };
+        Row: { id: string; owner_id: string; name: string; description: string | null; criteria: Json; status: Database["public"]["Enums"]["group_status"]; max_members: number; created_at: string; updated_at: string };
+        Insert: { id?: string; owner_id: string; name: string; description?: string | null; criteria: Json; status?: Database["public"]["Enums"]["group_status"]; max_members?: number; created_at?: string; updated_at?: string };
+        Update: { id?: string; owner_id?: string; name?: string; description?: string | null; criteria?: Json; status?: Database["public"]["Enums"]["group_status"]; max_members?: number; created_at?: string; updated_at?: string };
         Relationships: [{ foreignKeyName: "search_groups_owner_id_fkey"; columns: ["owner_id"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] }];
       };
       group_members: {

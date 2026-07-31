@@ -36,6 +36,8 @@ Leave `VITE_LISTINGS_API_BASE_URL` empty to use Demo Mode. Demo listings are **f
 
 Signed-in owners call the deployed `search-listings` Supabase Edge Function through the existing public Supabase client. The function authenticates the caller, verifies active group ownership, validates city/state or ZIP and criteria, and calls RentCast's active sale-listings endpoint once. Normalized snapshots are cached in `group_listings`, so both members load the same stable inventory without another provider request. Page loads, logins, callbacks, and route changes never trigger RentCast.
 
+New authenticated users can create their first shared search from **My Searches**. Creation inserts only the owner-controlled `search_groups` row; the database trigger adds the creator's single active owner membership. The user is then sent to `#/groups/:groupId/search` to enter criteria and explicitly request active listings. Apply all migrations, including the shared-search description migration, before enabling this flow.
+
 ```bash
 supabase login
 supabase link --project-ref YOUR_PROJECT_REF
@@ -74,7 +76,7 @@ npm run build
 1. Push to the primary branch.
 2. Open **Repository Settings → Pages → Source → GitHub Actions**.
 3. The workflow installs dependencies, lints, tests, builds, uploads, and deploys `dist`.
-4. To enable live search, also deploy the Edge Function and set `VITE_LISTINGS_API_BASE_URL` in the build environment; a static Pages deployment remains fully usable in Demo Mode.
+4. To enable connected live search, configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the build environment and deploy the Edge Function with its server-only secrets. `VITE_LISTINGS_API_BASE_URL` is not used by the connected flow.
 
 Hash routing permits refreshes beneath the repository subpath. Production builds use the explicit `/NestMatch/` base so authentication callbacks, assets, and the service worker consistently resolve to the deployed application root without hardcoding the GitHub account owner.
 
