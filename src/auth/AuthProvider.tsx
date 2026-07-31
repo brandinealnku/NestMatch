@@ -4,6 +4,7 @@ import type { AuthUser, Profile, ProfileInput } from "./authTypes";
 import type { Tables } from "../types/supabase-database.types";
 import { authProviderConfiguration } from "../lib/supabase";
 import { safeProviderName, startOAuth, type SocialProvider } from "./socialAuth";
+import { saveUserProfile } from "./profileSave";
 
 export type AuthAction = SocialProvider | "magic-link" | "password-sign-in" | "password-sign-up" | "password-update";
 export interface AuthContextValue { isConfigured: boolean; enabledProviders: typeof authProviderConfiguration; isLoading: boolean; activeAction: AuthAction | null; authError: string; user: AuthUser | null; profile: Profile | null; signInWithGoogle(): Promise<void>; signInWithApple(): Promise<void>; signInWithMagicLink(email: string): Promise<void>; signInWithPassword(email: string, password: string): Promise<void>; signUpWithPassword(email: string, password: string): Promise<{ requiresEmailConfirmation: boolean }>; updatePassword(password: string): Promise<void>; clearAuthError(): void; signOut(): Promise<void>; refreshProfile(): Promise<void>; saveProfile(input: ProfileInput): Promise<void> }
@@ -122,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     signInWithMagicLink: async email => { if (!supabase) throw new Error("Account sign-in is not configured."); if (activeAction === "magic-link") return; setActiveAction("magic-link"); setAuthError(""); const { error } = await requestMagicLink(supabase.auth, email.trim().toLowerCase()); setActiveAction(null); if (error) { const message="Email delivery is temporarily limited. You can still sign in with your password."; setAuthError(message); throw new Error(message); } },
     signOut: async () => { setUser(null); setProfile(null); if (supabase) await supabase.auth.signOut(); window.dispatchEvent(new Event("nestmatch:auth-cleared")); },
-    saveProfile: async input => { if (!supabase || !user) throw new Error("Sign in to save a profile."); const displayName = input.displayName.trim(); if (!displayName) throw new Error("Display name is required."); const { error } = await supabase.from("profiles").upsert({ id: user.id, display_name: displayName, avatar_color: input.avatarColor || null, browser_notifications_enabled: input.browserNotificationsEnabled }); if (error) throw new Error("We could not save your profile."); await refreshProfile(); },
+    saveProfile: async input => { if (!supabase) throw new Error("Account sign-in is not configured."); await saveUserProfile(supabase, user?.id, input); await refreshProfile(); },
   }), [isLoading, activeAction, authError, user, profile, refreshProfile, socialSignIn]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
