@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRentCastQuery,
+  buildSavedCriteria,
   normalizeRentCast,
+  normalizeRentCastCriteria,
   normalizeRentCastPayload,
   toRentCastMinimumRange,
   toRentCastPriceRange,
@@ -35,6 +37,60 @@ describe("RentCast query adapter", () => {
       propertyTypes: ["Single-family", "Multi-family", "Unsupported"],
     }, 25);
     expect(query.get("propertyType")).toBe("Single Family|Multi-Family");
+  });
+
+  it.each([
+    ["minPrice", { minPrice: 0 }],
+    ["minBedrooms", { minBedrooms: 0 }],
+    ["minBathrooms", { minBathrooms: 0 }],
+  ] as const)("treats a zero %s as absent", (key, criteria) => {
+    expect(normalizeRentCastCriteria(criteria)[key]).toBeUndefined();
+  });
+
+  it("creates a broad ZIP query with no optional provider filters", () => {
+    const query = buildRentCastQuery(
+      { type: "zip", zipCode: "41042" },
+      { minPrice: 0, maxPrice: 0, minBedrooms: 0, minBathrooms: 0, propertyTypes: [] },
+      25,
+    );
+    expect([...query.entries()]).toEqual([
+      ["status", "Active"],
+      ["limit", "25"],
+      ["zipCode", "41042"],
+    ]);
+  });
+
+  it("replaces every saved provider filter and preserves unrelated preferences", () => {
+    const saved = {
+      minPrice: 400000,
+      maxPrice: 700000,
+      minBedrooms: 3,
+      minBathrooms: 2,
+      propertyTypes: ["Single-family"],
+      preferredTypes: ["Townhouse"],
+      includeMissing: true,
+      mode: "zip",
+      zipCode: "41011",
+    };
+    const updated = buildSavedCriteria(
+      saved,
+      { minBathrooms: 0, propertyTypes: [] },
+      { type: "zip", zipCode: "41042" },
+    );
+
+    expect(updated).toMatchObject({
+      mode: "zip",
+      zipCode: "41042",
+      city: "",
+      state: "",
+      propertyTypes: [],
+      preferredTypes: ["Townhouse"],
+      includeMissing: true,
+    });
+    for (const key of ["minPrice", "maxPrice", "minBedrooms", "minBathrooms"]) {
+      expect(updated).not.toHaveProperty(key);
+    }
+    expect(JSON.parse(JSON.stringify(updated))).toEqual(updated);
   });
 });
 
